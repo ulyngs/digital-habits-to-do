@@ -811,7 +811,7 @@ function applyTranslations() {
     // Footer
     const footerText = document.querySelector('.footer-text');
     if (footerText) {
-        footerText.innerHTML = `${t('madeWith')} <span class="heart">♥</span> ${t('by')} <a href="https://reddfocus.org" target="_blank">reddfocus.org</a>`;
+        footerText.innerHTML = `${t('madeWith')} <span class="heart">♥</span> ${t('by')} <a href="https://digitalhabits.org" target="_blank">digitalhabits.org</a>`;
     }
 
     // Export/Import buttons
@@ -1705,10 +1705,9 @@ function addTask(text) {
 
     let targetTabId = currentTabId;
     if (currentView === 'favourites') {
-        const allTabIds = Object.keys(tabs);
-        if (allTabIds.length > 0) {
-            targetTabId = allTabIds[0];
-        }
+        // Favourites is a cross-list view — park new tasks on a local (non-synced) list
+        // so a later sync of Basecamp/Reminders lists can't wipe them.
+        targetTabId = getOrCreateLocalTabForFavourites();
     }
 
     if (!targetTabId) return; // Should not happen if tabs exist
@@ -3384,6 +3383,14 @@ function getTabSyncType(tabId) {
     if (tab.remindersListId) return 'reminders';
     if (tab.basecampListId) return 'basecamp';
     return 'local';
+}
+
+// First local (non-synced) list, creating one if none exist.
+// Used when adding tasks from the Favourites view.
+function getOrCreateLocalTabForFavourites() {
+    const localTabId = Object.keys(tabs).find(tabId => getTabSyncType(tabId) === 'local');
+    if (localTabId) return localTabId;
+    return createNewTab('Tasks');
 }
 
 // Helper to get all synced tab IDs that contain favourited tasks
@@ -7966,6 +7973,87 @@ async function basecampFetch(url, options = {}) {
     return response;
 }
 
+// Basecamp collection endpoints paginate via RFC5988 Link: <url>; rel="next"
+function parseBasecampNextLink(linkHeader) {
+    if (!linkHeader) return null;
+    const parts = String(linkHeader).split(',');
+    for (const part of parts) {
+        if (part.includes('rel="next"') || part.includes("rel='next'")) {
+            const match = part.match(/<([^>]+)>/);
+            if (match) return match[1];
+        }
+    }
+    return null;
+}
+
+function getBasecampResponseHeader(response, name) {
+    if (!response?.headers) return null;
+    if (typeof response.headers.get === 'function') {
+        return response.headers.get(name) || response.headers.get(name.toLowerCase());
+    }
+    const headers = response.headers;
+    const key = Object.keys(headers).find(k => k.toLowerCase() === name.toLowerCase());
+    return key ? headers[key] : null;
+}
+
+async function basecampFetchAllPages(url) {
+    const allItems = [];
+    let nextUrl = url;
+    const seen = new Set();
+
+    while (nextUrl && !seen.has(nextUrl)) {
+        seen.add(nextUrl);
+        const response = await basecampFetch(nextUrl);
+        if (!response.ok) {
+            throw new Error(`Basecamp request failed (${response.status}): ${nextUrl}`);
+        }
+
+        const page = await response.json();
+        if (Array.isArray(page)) {
+            allItems.push(...page);
+        }
+
+        nextUrl = parseBasecampNextLink(getBasecampResponseHeader(response, 'Link'));
+    }
+
+    return allItems;
+}
+
+// Active + completed todos for one todolist/group id (all pages)
+async function fetchBasecampTodosForList(projectId, listId) {
+    const baseUrl = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${projectId}/todolists/${listId}/todos.json`;
+    const [activeTodos, completedTodos] = await Promise.all([
+        basecampFetchAllPages(baseUrl),
+        basecampFetchAllPages(`${baseUrl}?completed=true`)
+    ]);
+    return [...activeTodos, ...completedTodos];
+}
+
+// Parent list todos PLUS todos inside groups/sections (Basecamp omits grouped todos from the parent endpoint)
+async function fetchAllBasecampTodosForList(projectId, listId) {
+    const groupsUrl = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${projectId}/todolists/${listId}/groups.json`;
+
+    const [directTodos, groups] = await Promise.all([
+        fetchBasecampTodosForList(projectId, listId),
+        basecampFetchAllPages(groupsUrl).catch(err => {
+            console.warn('Failed to fetch Basecamp todolist groups:', err);
+            return [];
+        })
+    ]);
+
+    const groupTodoArrays = await Promise.all(
+        (Array.isArray(groups) ? groups : []).map(group => fetchBasecampTodosForList(projectId, group.id))
+    );
+
+    const byId = new Map();
+    for (const todo of [...directTodos, ...groupTodoArrays.flat()]) {
+        if (todo && todo.id != null) {
+            byId.set(todo.id, todo);
+        }
+    }
+    return Array.from(byId.values());
+}
+
 async function checkProjectAccess(projectId, email) {
     try {
         const response = await basecampFetch(`https://3.basecampapi.com/${basecampConfig.accountId}/projects/${projectId}/people.json`, {
@@ -8059,20 +8147,8 @@ async function syncBasecampList(tabId) {
     if (!tab || !tab.basecampListId || !basecampConfig.isConnected) return;
 
     try {
-        // Fetch both active (default) and completed todos
-        const baseUrl = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todolists/${tab.basecampListId}/todos.json`;
-
-        const [activeResp, completedResp] = await Promise.all([
-            basecampFetch(baseUrl),
-            basecampFetch(`${baseUrl}?completed=true`)
-        ]);
-
-        const activeTodos = await activeResp.json();
-        const completedTodos = await completedResp.json();
-        const remoteTodos = [
-            ...(Array.isArray(activeTodos) ? activeTodos : []),
-            ...(Array.isArray(completedTodos) ? completedTodos : [])
-        ];
+        // Fetch all pages of active + completed todos, including those in groups/sections
+        const remoteTodos = await fetchAllBasecampTodosForList(tab.basecampProjectId, tab.basecampListId);
 
         // Merge logic: 
         // 1. Add new remote todos to local

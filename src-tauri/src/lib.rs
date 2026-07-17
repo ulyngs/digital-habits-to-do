@@ -156,23 +156,20 @@ pub fn run() {
                 let about_metadata = AboutMetadataBuilder::new()
                     .name(Some("ReDD To-Do"))
                     .version(Some(env!("CARGO_PKG_VERSION")))
-                    .authors(Some(vec![
-                        "The Reduce Digital Distraction Project".to_string()
-                    ]))
+                    .authors(Some(vec!["Centre for Digital Habits".to_string()]))
                     .comments(Some(
                         "Get back to that thing you meant to do.\n\n\
                         ReDD To-Do is a calm, distraction-free todo app with focus \
                         mode and time tracking. Your data lives on your device — \
                         nothing is collected.\n\n\
-                        Built by the Reduce Digital Distraction Project, a \
-                        not-for-profit that creates insights & open-source digital \
-                        focus tools for everyone to thrive in the digital world, \
-                        in collaboration with researchers at the University of \
+                        Built by Centre for Digital Habits, a not-for-profit that \
+                        creates open-source digital focus tools & training, in \
+                        collaboration with researchers at the University of \
                         Oxford and the University of Maastricht.",
                     ))
-                    .copyright(Some("© 2026 Reduce Digital Distraction Ltd"))
-                    .website(Some("https://reddfocus.org"))
-                    .website_label(Some("reddfocus.org"))
+                    .copyright(Some("© 2026 Centre for Digital Habits C.I.C."))
+                    .website(Some("https://digitalhabits.org"))
+                    .website_label(Some("digitalhabits.org"))
                     .license(Some("CC BY-NC-ND 3.0"))
                     .build();
 
@@ -233,7 +230,7 @@ pub fn run() {
                 let contact_us =
                     MenuItemBuilder::with_id("help_contact_us", "Contact us").build(app_handle)?;
                 let about_redd =
-                    MenuItemBuilder::with_id("help_about_redd", "About the ReDD Project")
+                    MenuItemBuilder::with_id("help_about_redd", "About Centre for Digital Habits")
                         .build(app_handle)?;
 
                 let help_submenu = SubmenuBuilder::new(app_handle, "Help")
@@ -255,8 +252,8 @@ pub fn run() {
                     "help_report_issue" => {
                         open_url(app, "https://github.com/ulyngs/redd-todo/issues")
                     }
-                    "help_contact_us" => open_url(app, "mailto:team@reddfocus.org"),
-                    "help_about_redd" => open_url(app, "https://reddfocus.org"),
+                    "help_contact_us" => open_url(app, "mailto:team@digitalhabits.org"),
+                    "help_about_redd" => open_url(app, "https://digitalhabits.org"),
                     _ => {}
                 });
             }

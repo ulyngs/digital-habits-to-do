@@ -256,9 +256,21 @@ const tauriAPI = {
             }
 
             // Fallback for different response format
+            const rawHeaders = response.headers || {};
             return {
                 ok: response.status >= 200 && response.status < 300,
                 status: response.status,
+                headers: {
+                    get(name) {
+                        if (typeof rawHeaders.get === 'function') {
+                            return rawHeaders.get(name) || rawHeaders.get(String(name).toLowerCase());
+                        }
+                        const key = Object.keys(rawHeaders).find(
+                            k => k.toLowerCase() === String(name).toLowerCase()
+                        );
+                        return key ? rawHeaders[key] : null;
+                    }
+                },
                 json: async () => {
                     if (response.data) return response.data;
                     if (typeof response.body === 'string') return JSON.parse(response.body);
