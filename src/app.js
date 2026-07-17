@@ -327,6 +327,8 @@ const translations = {
         disconnect: 'Disconnect',
         yourVersion: 'Your version',
         close: 'Close',
+        settingsFeedbackFooterHtml:
+            'Feedback or suggestions? <a href="https://github.com/ulyngs/redd-todo/issues" target="_blank" rel="noopener noreferrer">Open an issue on GitHub</a> or email <a href="mailto:team@digitalhabits.org">team@digitalhabits.org</a>.',
         // Tooltips
         settingsTooltip: 'Settings',
         moreInfo: 'More info',
@@ -407,6 +409,8 @@ const translations = {
         disconnect: 'Afbryd forbindelse',
         yourVersion: 'Din version',
         close: 'Luk',
+        settingsFeedbackFooterHtml:
+            'Feedback eller forslag? <a href="https://github.com/ulyngs/redd-todo/issues" target="_blank" rel="noopener noreferrer">Opret et issue på GitHub</a> eller skriv til <a href="mailto:team@digitalhabits.org">team@digitalhabits.org</a>.',
         // Tooltips
         settingsTooltip: 'Indstillinger',
         moreInfo: 'Mere info',
@@ -823,6 +827,11 @@ function applyTranslations() {
 
     const settingsZoomLabel = document.getElementById('settings-zoom-label');
     if (settingsZoomLabel) settingsZoomLabel.textContent = t('zoomLevel');
+
+    const settingsFeedbackFooterText = document.getElementById('settings-feedback-footer-text');
+    if (settingsFeedbackFooterText) {
+        settingsFeedbackFooterText.innerHTML = t('settingsFeedbackFooterHtml');
+    }
 
     const remindersConnectBtn = document.getElementById('reminders-connect-btn');
     if (remindersConnectBtn && !remindersConnectBtn.disabled) {
@@ -4933,11 +4942,14 @@ function setupEventListeners() {
         });
     }
 
-    // Handle all external links
+    // Handle all external links (http(s) and mailto)
     document.addEventListener('click', (event) => {
-        if (event.target.tagName === 'A' && event.target.href.startsWith('http')) {
+        const anchor = event.target.closest?.('a[href]');
+        if (!anchor) return;
+        const href = anchor.href || '';
+        if (href.startsWith('http') || href.startsWith('mailto:')) {
             event.preventDefault();
-            openExternal(event.target.href);
+            openExternal(href);
         }
     });
 

@@ -2527,6 +2527,47 @@ body.is-reordering * {
     background: #0f172a;
 }
 
+#settings-modal .settings-feedback-footer {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 16px;
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    background: #e9f0ed;
+    border: 1px solid #ccd8d2;
+    border-radius: 10px;
+    color: #2d5a4c;
+}
+
+#settings-modal .settings-feedback-icon {
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: currentColor;
+}
+
+#settings-modal .settings-feedback-text {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+#settings-modal .settings-feedback-text a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+#settings-modal .settings-feedback-text a:hover {
+    opacity: 0.85;
+}
+
+[data-theme="dark"] #settings-modal .settings-feedback-footer {
+    background: rgba(57, 158, 144, 0.14);
+    border-color: rgba(57, 158, 144, 0.32);
+    color: #b8ddd4;
+}
+
 #settings-modal .settings-modal-footer {
     margin-top: 16px;
 }
