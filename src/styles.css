@@ -3172,16 +3172,19 @@ body.focus-panel-window.is-fullscreen {
 
 .focus-task-switch-menu {
     position: relative;
+    display: flex;
+    flex-direction: column;
     width: min(100%, 400px);
     max-width: 400px;
     max-height: 720px;
-    overflow-y: auto;
+    overflow: hidden;
     background: var(--modal-bg);
     border: 1px solid var(--border-color-medium);
     border-radius: 12px;
     box-shadow: 0 16px 32px rgba(30, 45, 62, 0.16);
-    padding: 6px;
+    padding: 8px;
     margin: 6px 14px 0 auto;
+    gap: 6px;
     -webkit-app-region: no-drag;
 }
 
@@ -3194,6 +3197,142 @@ body.focus-panel-window.is-fullscreen {
     max-height: 50vh;
     margin: 0;
     z-index: 330;
+}
+
+.focus-task-switch-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-subtle);
+    flex-shrink: 0;
+}
+
+.focus-task-switch-search-icon {
+    flex-shrink: 0;
+    color: var(--text-tertiary);
+}
+
+.focus-task-switch-search-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 13px;
+    line-height: 1.3;
+    padding: 0;
+    font-family: inherit;
+}
+
+.focus-task-switch-search-input::placeholder {
+    color: var(--text-tertiary);
+}
+
+.focus-task-switch-esc {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text-tertiary);
+    background: var(--modal-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 2px 5px;
+    line-height: 1.2;
+}
+
+.focus-task-switch-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-shrink: 0;
+    padding: 1px 0 2px;
+    scrollbar-width: thin;
+}
+
+.focus-task-switch-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 160px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.2;
+    padding: 5px 8px;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: inherit;
+    flex-shrink: 0;
+}
+
+.focus-task-switch-tab:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.focus-task-switch-tab.active {
+    background: var(--active-bg);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+.focus-task-switch-tab-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.focus-task-switch-tab-count {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    background: var(--bg-subtle);
+    border-radius: 999px;
+    min-width: 16px;
+    padding: 1px 5px;
+    text-align: center;
+}
+
+.focus-task-switch-tab.active .focus-task-switch-tab-count {
+    color: var(--text-secondary);
+}
+
+.focus-task-switch-list {
+    overflow-y: auto;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+
+.focus-task-switch-group-label {
+    padding: 8px 10px 4px;
+    font-size: 10px;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    user-select: none;
+}
+
+.focus-task-switch-group-label:not(:first-child) {
+    margin-top: 4px;
+}
+
+.focus-task-switch-empty {
+    padding: 14px 10px;
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 12px;
+    line-height: 1.4;
 }
 
 .focus-task-switch-item {
@@ -3209,6 +3348,10 @@ body.focus-panel-window.is-fullscreen {
     cursor: pointer;
     display: block;
     margin: 0;
+    font-family: inherit;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .focus-task-switch-item:hover {

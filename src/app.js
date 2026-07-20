@@ -346,6 +346,9 @@ const translations = {
         // Focus mode
         focus: 'Focus',
         exitFocus: 'Exit Focus',
+        switchTaskSearchPlaceholder: 'Switch to another task...',
+        switchTaskNoMatches: 'No matching tasks',
+        switchTaskEmptyList: 'No open tasks in this list',
         // Time
         minutes: 'm',
         rebrandOnboardingTitleHtml:
@@ -428,6 +431,9 @@ const translations = {
         // Focus mode
         focus: 'Fokus',
         exitFocus: 'Afslut fokus',
+        switchTaskSearchPlaceholder: 'Skift til en anden opgave...',
+        switchTaskNoMatches: 'Ingen matchende opgaver',
+        switchTaskEmptyList: 'Ingen åbne opgaver i denne liste',
         // Time
         minutes: 'm',
         rebrandOnboardingTitleHtml:
@@ -618,6 +624,10 @@ const fullscreenFocusBtn = document.getElementById('fullscreen-focus-btn');
 const switchFocusTaskBtn = document.getElementById('switch-focus-task-btn');
 const focusTaskSwitchMenu = document.getElementById('focus-task-switch-menu');
 const focusTaskSwitchList = document.getElementById('focus-task-switch-list');
+const focusTaskSwitchSearchInput = document.getElementById('focus-task-switch-search');
+const focusTaskSwitchTabs = document.getElementById('focus-task-switch-tabs');
+let focusTaskSwitchSelectedTabId = null;
+let focusTaskSwitchSearchQuery = '';
 
 // Theme Management
 const themeSelect = document.getElementById('theme-select');
@@ -801,6 +811,10 @@ function applyTranslations() {
     // Add task placeholder
     const newTaskInput = document.getElementById('new-task-input');
     if (newTaskInput) newTaskInput.placeholder = t('addTaskPlaceholder');
+
+    if (focusTaskSwitchSearchInput) {
+        focusTaskSwitchSearchInput.placeholder = t('switchTaskSearchPlaceholder');
+    }
 
     // Done section
     const doneLabel = document.querySelector('.done-label');
@@ -5393,9 +5407,7 @@ function setupEventListeners() {
             if (focusTaskSwitchMenu.classList.contains('hidden')) {
                 // Notes and task switch list should never be visible together.
                 hideFocusNotesPanel();
-                renderFocusTaskSwitchMenu();
-                focusTaskSwitchMenu.classList.remove('hidden');
-                expandFocusWindowForTaskSwitchMenu();
+                openFocusTaskSwitchMenu();
             } else {
                 closeFocusTaskSwitchMenu();
             }
@@ -5415,6 +5427,31 @@ function setupEventListeners() {
                 closeFocusTaskSwitchMenu();
             }
         });
+
+        if (focusTaskSwitchSearchInput) {
+            focusTaskSwitchSearchInput.addEventListener('input', () => {
+                focusTaskSwitchSearchQuery = focusTaskSwitchSearchInput.value || '';
+                renderFocusTaskSwitchMenu({ preserveSearchFocus: true });
+                expandFocusWindowForTaskSwitchMenu();
+            });
+            focusTaskSwitchSearchInput.addEventListener('keydown', (e) => {
+                // Keep typing/search keys from bubbling into other focus-mode handlers.
+                e.stopPropagation();
+                if (e.key === 'Escape') {
+                    if (focusTaskSwitchSearchInput.value) {
+                        focusTaskSwitchSearchInput.value = '';
+                        focusTaskSwitchSearchQuery = '';
+                        renderFocusTaskSwitchMenu({ preserveSearchFocus: true });
+                        expandFocusWindowForTaskSwitchMenu();
+                    } else {
+                        closeFocusTaskSwitchMenu();
+                    }
+                }
+            });
+            focusTaskSwitchSearchInput.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        }
     }
 
     exitFocusBtn.addEventListener('click', async (e) => {
@@ -5995,6 +6032,10 @@ function closeFocusTaskSwitchMenu() {
     if (focusTaskSwitchMenu) {
         focusTaskSwitchMenu.classList.add('hidden');
     }
+    focusTaskSwitchSearchQuery = '';
+    if (focusTaskSwitchSearchInput) {
+        focusTaskSwitchSearchInput.value = '';
+    }
 
     // Restore the exact window height from before opening the switch menu.
     // - dedicated focus panel windows (macOS)
@@ -6013,6 +6054,23 @@ function closeFocusTaskSwitchMenu() {
     }
 }
 
+function openFocusTaskSwitchMenu() {
+    const context = focusedTaskId ? getTaskContext(focusedTaskId) : null;
+    focusTaskSwitchSelectedTabId = context?.tabId || Object.keys(tabs)[0] || null;
+    focusTaskSwitchSearchQuery = '';
+    if (focusTaskSwitchSearchInput) {
+        focusTaskSwitchSearchInput.value = '';
+        focusTaskSwitchSearchInput.placeholder = t('switchTaskSearchPlaceholder');
+    }
+    renderFocusTaskSwitchMenu();
+    focusTaskSwitchMenu.classList.remove('hidden');
+    expandFocusWindowForTaskSwitchMenu();
+    // Focus search after paint so the caret is ready immediately.
+    requestAnimationFrame(() => {
+        focusTaskSwitchSearchInput?.focus();
+    });
+}
+
 function hideFocusNotesPanel() {
     const notesFocusBtn = document.getElementById('notes-focus-btn');
     const focusNotesContainer = document.getElementById('focus-notes-container');
@@ -6025,19 +6083,23 @@ function hideFocusNotesPanel() {
     if (focusNotesWrapper) focusNotesWrapper.classList.remove('active');
 }
 
-function hasOtherTasksInFocusedTab() {
+function getFocusSwitchableTabEntries() {
+    return Object.keys(tabs)
+        .map((tabId) => ({ tabId, tab: tabs[tabId] }))
+        .filter(({ tab }) => tab && Array.isArray(tab.tasks));
+}
+
+function hasSwitchableFocusTasks() {
     if (!focusedTaskId) return false;
-    const context = getTaskContext(focusedTaskId);
-    if (!context || !context.tab || !Array.isArray(context.tab.tasks)) return false;
-    return context.tab.tasks.some(
-        (task) => !task.completed && task.id !== focusedTaskId
+    return getFocusSwitchableTabEntries().some(({ tab }) =>
+        tab.tasks.some((task) => !task.completed && task.id !== focusedTaskId)
     );
 }
 
 function updateFocusSwitchTaskBtnVisibility() {
     if (!switchFocusTaskBtn) return;
     const wrapper = switchFocusTaskBtn.closest('.focus-switch-task-wrapper') || switchFocusTaskBtn;
-    if (hasOtherTasksInFocusedTab()) {
+    if (hasSwitchableFocusTasks()) {
         wrapper.classList.remove('hidden');
     } else {
         wrapper.classList.add('hidden');
@@ -6048,29 +6110,177 @@ function updateFocusSwitchTaskBtnVisibility() {
     }
 }
 
-function renderFocusTaskSwitchMenu() {
-    if (!focusTaskSwitchList) return;
+function renderFocusTaskSwitchTabs(tabEntries, { visible = true } = {}) {
+    if (!focusTaskSwitchTabs) return;
+
+    const showTabs = visible && tabEntries.length > 1;
+    focusTaskSwitchTabs.classList.toggle('hidden', !showTabs);
+    focusTaskSwitchTabs.innerHTML = '';
+    if (!showTabs) return;
+
+    if (!focusTaskSwitchSelectedTabId || !tabs[focusTaskSwitchSelectedTabId]) {
+        const context = focusedTaskId ? getTaskContext(focusedTaskId) : null;
+        focusTaskSwitchSelectedTabId = context?.tabId || tabEntries[0]?.tabId || null;
+    }
+
+    tabEntries.forEach(({ tabId, tab }) => {
+        const openCount = tab.tasks.filter((task) => !task.completed).length;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'focus-task-switch-tab';
+        btn.setAttribute('role', 'tab');
+        btn.setAttribute('aria-selected', tabId === focusTaskSwitchSelectedTabId ? 'true' : 'false');
+        if (tabId === focusTaskSwitchSelectedTabId) {
+            btn.classList.add('active');
+        }
+        btn.title = tab.name || 'List';
+        const nameEl = document.createElement('span');
+        nameEl.className = 'focus-task-switch-tab-name';
+        nameEl.textContent = tab.name || 'List';
+        const countEl = document.createElement('span');
+        countEl.className = 'focus-task-switch-tab-count';
+        countEl.textContent = String(openCount);
+        btn.appendChild(nameEl);
+        btn.appendChild(countEl);
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (focusTaskSwitchSelectedTabId === tabId) return;
+            focusTaskSwitchSelectedTabId = tabId;
+            renderFocusTaskSwitchMenu({ preserveSearchFocus: true });
+            expandFocusWindowForTaskSwitchMenu();
+        });
+        focusTaskSwitchTabs.appendChild(btn);
+    });
+}
+
+function createFocusTaskSwitchItem(task) {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'focus-task-switch-item';
+    item.textContent = task.text || 'Untitled task';
+    item.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        switchFocusTask(task.id);
+    });
+    return item;
+}
+
+function compareFocusSwitchTaskText(a, b) {
+    return (a.text || '').localeCompare(b.text || '', undefined, {
+        sensitivity: 'base',
+        numeric: true,
+    });
+}
+
+/** Cross-list search groups: current focused list first, then remaining lists in tab UI order.
+ *  Tasks within each list are alphabetical. */
+function getFocusTaskSwitchSearchGroups(query) {
     const context = focusedTaskId ? getTaskContext(focusedTaskId) : null;
-    if (!context || !context.tab || !Array.isArray(context.tab.tasks)) {
+    const currentListId = context?.tabId || focusTaskSwitchSelectedTabId;
+    const tabEntries = getFocusSwitchableTabEntries();
+    const groupsInTabOrder = [];
+
+    tabEntries.forEach(({ tabId, tab }) => {
+        const tasks = tab.tasks
+            .filter((task) => {
+                if (task.completed || task.id === focusedTaskId) return false;
+                return (task.text || '').toLowerCase().includes(query);
+            })
+            .slice()
+            .sort(compareFocusSwitchTaskText);
+        if (tasks.length > 0) {
+            groupsInTabOrder.push({
+                tabId,
+                tabName: tab.name || 'List',
+                tasks,
+            });
+        }
+    });
+
+    const currentIdx = groupsInTabOrder.findIndex((group) => group.tabId === currentListId);
+    if (currentIdx > 0) {
+        const [currentGroup] = groupsInTabOrder.splice(currentIdx, 1);
+        groupsInTabOrder.unshift(currentGroup);
+    }
+
+    return groupsInTabOrder;
+}
+
+function appendFocusTaskSwitchEmpty(message) {
+    const empty = document.createElement('div');
+    empty.className = 'focus-task-switch-empty';
+    empty.textContent = message;
+    focusTaskSwitchList.appendChild(empty);
+}
+
+function renderFocusTaskSwitchMenu(options = {}) {
+    if (!focusTaskSwitchList) return;
+    const { preserveSearchFocus = false } = options;
+    const tabEntries = getFocusSwitchableTabEntries();
+    const query = (focusTaskSwitchSearchQuery || '').trim().toLowerCase();
+    const isSearching = query.length > 0;
+
+    if (tabEntries.length === 0) {
+        if (focusTaskSwitchTabs) {
+            focusTaskSwitchTabs.classList.add('hidden');
+            focusTaskSwitchTabs.innerHTML = '';
+        }
         focusTaskSwitchList.innerHTML = '';
         return;
     }
 
+    if (!focusTaskSwitchSelectedTabId || !tabs[focusTaskSwitchSelectedTabId]) {
+        const context = focusedTaskId ? getTaskContext(focusedTaskId) : null;
+        focusTaskSwitchSelectedTabId = context?.tabId || tabEntries[0].tabId;
+    }
+
+    // Tabs are for browsing one list at a time; hide them while searching across lists.
+    renderFocusTaskSwitchTabs(tabEntries, { visible: !isSearching });
+
     focusTaskSwitchList.innerHTML = '';
-    context.tab.tasks
-        .filter((task) => !task.completed && task.id !== focusedTaskId)
-        .forEach((task) => {
-            const item = document.createElement('button');
-            item.type = 'button';
-            item.className = 'focus-task-switch-item';
-            item.textContent = task.text || 'Untitled task';
-            item.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                switchFocusTask(task.id);
+
+    if (isSearching) {
+        const groups = getFocusTaskSwitchSearchGroups(query);
+        if (groups.length === 0) {
+            appendFocusTaskSwitchEmpty(t('switchTaskNoMatches'));
+        } else {
+            const showGroupHeaders = tabEntries.length > 1;
+            groups.forEach((group) => {
+                if (showGroupHeaders) {
+                    const header = document.createElement('div');
+                    header.className = 'focus-task-switch-group-label';
+                    header.textContent = group.tabName;
+                    focusTaskSwitchList.appendChild(header);
+                }
+                group.tasks.forEach((task) => {
+                    focusTaskSwitchList.appendChild(createFocusTaskSwitchItem(task));
+                });
             });
-            focusTaskSwitchList.appendChild(item);
-        });
+        }
+    } else {
+        const selectedTab = tabs[focusTaskSwitchSelectedTabId];
+        const matchingTasks = (selectedTab?.tasks || []).filter(
+            (task) => !task.completed && task.id !== focusedTaskId
+        );
+
+        if (matchingTasks.length === 0) {
+            appendFocusTaskSwitchEmpty(t('switchTaskEmptyList'));
+        } else {
+            matchingTasks.forEach((task) => {
+                focusTaskSwitchList.appendChild(createFocusTaskSwitchItem(task));
+            });
+        }
+    }
+
+    if (preserveSearchFocus && focusTaskSwitchSearchInput) {
+        const cursor = focusTaskSwitchSearchInput.selectionStart;
+        focusTaskSwitchSearchInput.focus();
+        if (typeof cursor === 'number') {
+            focusTaskSwitchSearchInput.setSelectionRange(cursor, cursor);
+        }
+    }
 }
 
 function expandFocusWindowForTaskSwitchMenu() {
@@ -6090,10 +6300,17 @@ function expandFocusWindowForTaskSwitchMenu() {
         preTaskSwitchMenuHeight = currentHeight;
     }
     requestAnimationFrame(() => {
-        const menuContentHeight = Math.max(
-            focusTaskSwitchMenu.scrollHeight || 0,
-            focusTaskSwitchList ? focusTaskSwitchList.scrollHeight : 0
-        );
+        const searchEl = focusTaskSwitchMenu.querySelector('.focus-task-switch-search');
+        const chromeHeight =
+            (searchEl ? searchEl.offsetHeight : 0) +
+            (focusTaskSwitchTabs && !focusTaskSwitchTabs.classList.contains('hidden')
+                ? focusTaskSwitchTabs.offsetHeight
+                : 0) +
+            20; // menu padding + gaps
+        const listHeight = focusTaskSwitchList
+            ? Math.min(focusTaskSwitchList.scrollHeight || 0, 520)
+            : 0;
+        const menuContentHeight = chromeHeight + listHeight;
         const targetHeight = Math.min(Math.max(56 + menuContentHeight, 56), 800);
         reddIpc.send('set-focus-window-height', targetHeight);
     });
