@@ -2,6 +2,16 @@
 
 User-facing changes for each release. Every app upgrade adds a new entry here.
 
+## v2.7.7
+
+- **Centre for Digital Habits:** EULA, footer, About, and Help links now point to digitalhabits.org and Centre for Digital Habits (same not-for-profit, new name).
+- **Settings feedback:** Settings now includes a footer with links to open a GitHub issue or email the team.
+- **Focus mode task switcher:** Switch between open tasks across lists without leaving focus mode — search by name, and use list tabs to browse other to-do lists.
+- **Basecamp sync:** Syncing now pulls all pages of Basecamp to-dos and section groups, so longer lists are no longer truncated.
+- **Favourites:** Adding a favourited task that isn’t on a local list parks it on a local Favourites list instead of dropping the favourite.
+
+- **Version:** 2.7.7 (macOS and Windows).
+
 ## v2.7.6
 
 - **Focus mode reliability (macOS):** Completing tasks, tracking time, and editing notes in the focus panel no longer get lost when you quit or close the app. The focus window now saves changes without overwriting updates from the main window.
