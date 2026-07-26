@@ -1,0 +1,84 @@
+# Microsoft Store CI submit (ReDD To-Do)
+
+On tag pushes (`v*`) and optional manual Release builds, GitHub Actions builds
+an unsigned Store `.msix` and submits it to Partner Center with What’s new text
+from [`changelog.md`](../changelog.md). Partner Center re-signs on ingest.
+
+The Store submit job is independent of the GitHub Release job: a Partner Center
+outage does not block creating the Release (and vice versa).
+
+## One-time Partner Center / Entra setup
+
+App update APIs are supported for **free** Store products. Confirm ReDD To-Do
+is free to download before relying on this path.
+
+You can **reuse the same Entra app** already set up for ReDD Blocker (Manager
+role on the Partner Center account). Only `MS_STORE_PRODUCT_ID` must be
+To-Do’s Store ID.
+
+1. In [Partner Center](https://partner.microsoft.com/), ensure a Microsoft Entra
+   tenant is associated with the account.
+2. Reuse (or create) an Entra app registration → client ID, tenant ID, client
+   secret. Assign **Manager** under Partner Center → User management →
+   Microsoft Entra applications.
+3. Copy **Seller ID** (Account settings → Identifiers).
+4. Copy ReDD To-Do’s **Store ID** (`9…` from the product identity / Store URL).
+
+## GitHub Actions secrets (`ulyngs/redd-todo`)
+
+| Secret | Source |
+| --- | --- |
+| `WINDOWS_IDENTITY_NAME` | Partner Center package identity (e.g. `ReduceDigitalDistraction.ReDDTodo`) |
+| `WINDOWS_PUBLISHER` | Publisher CN from Partner Center |
+| `WINDOWS_PUBLISHER_DISPLAY_NAME` | Publisher display name |
+| `AZURE_AD_TENANT_ID` | Entra Directory (tenant) ID — same as Blocker if reusing |
+| `AZURE_AD_APPLICATION_CLIENT_ID` | Entra Application (client) ID |
+| `AZURE_AD_APPLICATION_SECRET` | Entra client secret |
+| `SELLER_ID` | Partner Center Seller / Publisher ID |
+| `MS_STORE_PRODUCT_ID` | **To-Do** Store product ID (`9…`) |
+
+## Workflow behaviour
+
+[`Release build`](../.github/workflows/release.yml):
+
+- **Tag push `v*`:** builds x64 MSIX, creates a GitHub Release, submits to the
+  Store (when secrets are set).
+- **Manual run:** checkboxes for GitHub Release and Store submit (both default
+  on).
+
+Flow inside [`scripts/submit-microsoft-store.ps1`](../scripts/submit-microsoft-store.ps1):
+
+1. Bundle `.msix` into `.msixbundle` (`makeappx`).
+2. Build What’s new
+   ([`scripts/changelog-to-store-whats-new.js`](../scripts/changelog-to-store-whats-new.js))
+   — friendly intro + product bullets + sign-off (skips `Version:`, macOS /
+   Mac App Store-only lines, and release-engineering bullets).
+3. `msstore publish <bundle> -id <productId> -nc` (upload only).
+4. Stamp `releaseNotes` + mark superseded packages `PendingDelete` →
+   `msstore submission update`.
+5. `msstore submission publish` (commit for certification).
+
+## Local dry-run (credentials)
+
+```powershell
+msstore reconfigure `
+  --tenantId $env:AZURE_AD_TENANT_ID `
+  --sellerId $env:SELLER_ID `
+  --clientId $env:AZURE_AD_APPLICATION_CLIENT_ID `
+  --clientSecret $env:AZURE_AD_APPLICATION_SECRET
+
+msstore apps list
+msstore submission get $env:MS_STORE_PRODUCT_ID
+```
+
+## Retry submit without rebuilding
+
+Actions → **Store submit only** → Run workflow with the release tag
+(e.g. `v2.7.7`). Downloads `.msix` from the GitHub Release and re-runs submit.
+
+Workflow: [`.github/workflows/store-submit.yml`](../.github/workflows/store-submit.yml).
+
+## Manual fallback
+
+Upload the Release’s `.msix` by hand in Partner Center → Packages if CI submit
+secrets are missing.

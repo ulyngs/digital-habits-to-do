@@ -8,7 +8,8 @@
     "build": "tauri build && node scripts/collect-distribution-artifacts.js",
     "build:mac": "rm -f src-tauri/target/universal-apple-darwin/release/bundle/macos/rw.*.dmg src-tauri/target/universal-apple-darwin/release/bundle/dmg/rw.*.dmg && CARGO_TARGET_DIR=target CI=false tauri build --target universal-apple-darwin && node scripts/collect-distribution-artifacts.js --target universal-apple-darwin && node scripts/notarize-direct-mac.js && node scripts/build-mas-package.js --skip-tauri-build --optional",
     "build:mas": "node scripts/build-mas-package.js",
-    "build:win": "set WINDOWS_STORE=1&& tauri build --target x86_64-pc-windows-msvc --no-bundle && tauri bundle --target x86_64-pc-windows-msvc --bundles nsis,msi --config src-tauri/tauri.microsoftstore.conf.json && node scripts/collect-distribution-artifacts.js --target x86_64-pc-windows-msvc && node scripts/verify-windows-store-artifacts.js && powershell -ExecutionPolicy Bypass -File scripts/build-msix.ps1",
+    "build:win": "powershell -ExecutionPolicy Bypass -File scripts/build-win-store.ps1 -x64Only",
+    "build:win-store": "powershell -ExecutionPolicy Bypass -File scripts/build-win-store.ps1 -x64Only",
     "build:linux": "bash scripts/build-linux.sh && node scripts/collect-distribution-artifacts.js --target x86_64-unknown-linux-gnu && node scripts/normalize-linux-artifact-names.js x86_64-unknown-linux-gnu"
   },
   "keywords": [

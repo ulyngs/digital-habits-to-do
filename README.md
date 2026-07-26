@@ -114,9 +114,13 @@ For Mac App Store submission, `npm run build:mas` writes:
 - `APPLE_PROVISIONING_PROFILE_PATH` pointing to a Mac App Store provisioning profile whose listed certificate matches the Apple Distribution cert above
 - `src-tauri/tauri.conf.json` with `app.macOSPrivateApi` set to `false` (App Store requirement)
 
-For Microsoft Store submission, `npm run build:win` verifies that at least one Store package exists
-(`.appx`, `.msix`, `.appxbundle`, `.msixbundle`, `.appxupload`, or `.msixupload`) in:
-- `for-distribution/x86_64-pc-windows-msvc/`
+For Microsoft Store submission, `npm run build:win` / `npm run build:win-store` builds
+an unsigned `.msix` under:
+- `for-distribution/x86_64-pc-windows-msvc/ReDD-To-Do_<version>.0_x64.msix`
+
+**CI releases:** push a `v*` tag (or run Actions → **Release build**) to create a
+GitHub Release and submit the MSIX to Partner Center. Setup:
+[docs/microsoft-store-ci.md](docs/microsoft-store-ci.md).
 
 Note: To build with custom icons, place your icon files in the `assets/` directory:
 *   `assets/icon.icns` (Mac)
