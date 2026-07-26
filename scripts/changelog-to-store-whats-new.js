@@ -6,6 +6,10 @@
  * product changes only, then a fixed sign-off. Skips Version lines,
  * macOS-only / Mac App Store bullets, and release-engineering notes.
  *
+ * Optional: a leading `>` blockquote in the version section is used as the
+ * Store body instead of bullets (exact prose between "Hi folks," and the
+ * sign-off).
+ *
  * Usage:
  *   node scripts/changelog-to-store-whats-new.js <version> [changelog.md] > whats_new.txt
  *   node scripts/changelog-to-store-whats-new.js 2.7.7 --out whats_new.txt
@@ -102,6 +106,21 @@ function formatStoreBullet(rawBody) {
   return `- ${plain}`;
 }
 
+/** Leading `>` lines in the section → exact Store prose (no bullet list). */
+function collectStoreProse(sectionLines) {
+  const parts = [];
+  for (const raw of sectionLines) {
+    const line = raw.replace(/\s+$/, '');
+    const m = line.match(/^>\s?(.*)$/);
+    if (!m) {
+      if (parts.length) break; // only a leading blockquote
+      continue;
+    }
+    parts.push(m[1]);
+  }
+  return parts.join('\n').trim();
+}
+
 function collectStoreBullets(sectionLines) {
   const bullets = [];
   for (let i = 0; i < sectionLines.length; i += 1) {
@@ -135,7 +154,18 @@ function collectStoreBullets(sectionLines) {
   return bullets;
 }
 
-function buildWhatsNew(bullets) {
+function buildWhatsNew(bullets, prose) {
+  const signoff = SIGNOFF;
+  const joiner = '\n\n';
+
+  if (prose) {
+    const text = `Hi folks,${joiner}${prose}${joiner}${signoff}`.trim();
+    if (text.length > MAX_CHARS) {
+      throw new Error(`Store prose What's new exceeds ${MAX_CHARS} characters.`);
+    }
+    return text;
+  }
+
   if (!bullets.length) {
     throw new Error(
       'No user-facing changelog bullets for Store notes (only Version / macOS / internal lines?).',
@@ -143,8 +173,6 @@ function buildWhatsNew(bullets) {
   }
 
   const intro = INTRO;
-  const signoff = SIGNOFF;
-  const joiner = '\n\n';
   const fixedLen = intro.length + signoff.length + joiner.length * 2;
 
   let list = bullets.join('\n');
@@ -188,8 +216,9 @@ function main() {
 
   const markdown = fs.readFileSync(changelogPath, 'utf8');
   const sectionLines = extractSection(markdown, version);
+  const prose = collectStoreProse(sectionLines);
   const bullets = collectStoreBullets(sectionLines);
-  const text = buildWhatsNew(bullets);
+  const text = buildWhatsNew(bullets, prose);
 
   if (outPath) {
     fs.writeFileSync(outPath, `${text}\n`, 'utf8');

@@ -4,7 +4,9 @@ User-facing changes for each release. Every app upgrade adds a new entry here.
 
 ## v2.7.8
 
-- **EULA footer:** Clearer attribution copy (“We are a not-for-profit…”), no italics, and a slightly smaller font.
+> This update makes some minor UI layout improvements to the opening page.
+
+- **Opening page:** Minor UI layout improvements on the EULA / opening screen (clearer attribution copy, no italics, slightly smaller footer type).
 
 - **Version:** 2.7.8 (macOS and Windows).
 
