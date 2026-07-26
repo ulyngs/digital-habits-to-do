@@ -2,6 +2,12 @@
 
 User-facing changes for each release. Every app upgrade adds a new entry here.
 
+## v2.7.8
+
+- **EULA footer:** Clearer attribution copy (“We are a not-for-profit…”), no italics, and a slightly smaller font.
+
+- **Version:** 2.7.8 (macOS and Windows).
+
 ## v2.7.7
 
 - **Centre for Digital Habits:** EULA, footer, About, and Help links now point to digitalhabits.org and Centre for Digital Habits (same not-for-profit, new name).

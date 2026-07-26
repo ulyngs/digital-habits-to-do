@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "ReDD To-Do",
-  "version": "2.7.7",
+  "version": "2.7.8",
   "identifier": "com.redd.do",
   "build": {
     "frontendDist": "../src"
