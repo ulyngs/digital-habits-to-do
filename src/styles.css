@@ -4597,9 +4597,12 @@ input:checked+.slider:before {
     max-width: 520px;
     margin: 0 auto;
     color: var(--text-tertiary);
-    font-size: 14px;
+    font-size: 12px;
     line-height: 1.6;
-    font-style: italic;
+}
+
+.legal-onboarding-body + .legal-onboarding-body {
+    margin-top: 0.6em;
 }
 
 #eula-onboarding .primary-btn,
