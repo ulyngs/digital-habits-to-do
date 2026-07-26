@@ -21,7 +21,8 @@ To-Do’s Store ID.
 2. Reuse (or create) an Entra app registration → client ID, tenant ID, client
    secret. Assign **Manager** under Partner Center → User management →
    Microsoft Entra applications.
-3. Copy **Seller ID** (Account settings → Identifiers).
+3. Copy **Seller ID** (Account settings → Identifiers). It is a **number**
+   (digits only) — not the Publisher GUID, not `CN=…`, not the Store `9…` ID.
 4. Copy ReDD To-Do’s **Store ID** (`9…` from the product identity / Store URL).
 
 ## GitHub Actions secrets (`ulyngs/redd-todo`)
@@ -34,7 +35,7 @@ To-Do’s Store ID.
 | `AZURE_AD_TENANT_ID` | Entra Directory (tenant) ID — same as Blocker if reusing |
 | `AZURE_AD_APPLICATION_CLIENT_ID` | Entra Application (client) ID |
 | `AZURE_AD_APPLICATION_SECRET` | Entra client secret |
-| `SELLER_ID` | Partner Center Seller / Publisher ID |
+| `SELLER_ID` | Partner Center **Seller ID** (numeric, e.g. `1234567`) |
 | `MS_STORE_PRODUCT_ID` | **To-Do** Store product ID (`9…`) |
 
 ## Workflow behaviour

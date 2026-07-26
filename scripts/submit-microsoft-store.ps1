@@ -110,11 +110,22 @@ if (-not (Test-Path -LiteralPath $bundleOut)) {
 
 if ($Reconfigure) {
     $tenant = $env:AZURE_AD_TENANT_ID
-    $seller = $env:SELLER_ID
+    $seller = ($env:SELLER_ID ?? '').Trim().Trim('"').Trim("'")
     $client = $env:AZURE_AD_APPLICATION_CLIENT_ID
     $secret = $env:AZURE_AD_APPLICATION_SECRET
     if (-not ($tenant -and $seller -and $client -and $secret)) {
         throw 'Reconfigure requires AZURE_AD_TENANT_ID, SELLER_ID, AZURE_AD_APPLICATION_CLIENT_ID, AZURE_AD_APPLICATION_SECRET.'
+    }
+    # msstore parses --sellerId with Convert.ToInt32 — must be digits only
+    # (Partner Center → Account settings → Identifiers → Seller ID).
+    # Not the Publisher GUID, Store product ID (9…), or WINDOWS_PUBLISHER CN=.
+    if ($seller -notmatch '^\d+$') {
+        throw @"
+SELLER_ID must be the numeric Partner Center Seller ID (digits only).
+Got length=$($seller.Length) (value redacted).
+Open Partner Center → Account settings → Identifiers → Seller ID, update the
+GitHub secret, then re-run Actions → Store submit only with this release tag.
+"@
     }
     Write-Host 'Configuring msstore credentials…' -ForegroundColor Cyan
     msstore reconfigure `
