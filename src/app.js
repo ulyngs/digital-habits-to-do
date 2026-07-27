@@ -1070,11 +1070,17 @@ function finishCommonInit() {
     // Apply saved max height
     if (doneMaxHeight !== undefined && doneMaxHeight !== null) {
         doneContainer.style.maxHeight = `${doneMaxHeight}px`;
-        if (doneMaxHeight <= 32) {
+        if (doneMaxHeight === 0) {
             doneContainer.style.paddingTop = '0';
             doneContainer.style.paddingBottom = '0';
             isDoneCollapsed = true;
+        } else if (doneMaxHeight <= 32) {
+            doneContainer.style.paddingTop = '8px';
+            doneContainer.style.paddingBottom = '0';
+            isDoneCollapsed = true;
         } else {
+            doneContainer.style.paddingTop = '8px';
+            doneContainer.style.paddingBottom = '16px';
             isDoneCollapsed = false;
         }
         doneContainer.classList.toggle('collapsed', isDoneCollapsed);
@@ -5081,16 +5087,16 @@ function setupEventListeners() {
             // Calculate target height for 3.5 tasks or all tasks if fewer
             const tasksToShow = Math.min(3.5, taskCount);
             const expandedHeight = headingHeight + summaryHeight + padding + (tasksToShow * taskItemHeight);
-            const collapsedHeight = 24; // Minimal height, just showing the heading
+            const collapsedHeight = 32; // heading (24) + same top padding as expanded (8)
 
             const currentHeight = parseInt(window.getComputedStyle(doneContainer).maxHeight) || doneMaxHeight;
 
             // Toggle: if already at or above expanded height, collapse; otherwise expand
             if (currentHeight >= expandedHeight - 10) { // -10 for tolerance
-                // Collapse to just show heading
+                // Collapse to just show heading — keep top padding so spacing under add-task matches expanded
                 doneMaxHeight = collapsedHeight;
                 doneContainer.style.maxHeight = `${collapsedHeight}px`;
-                doneContainer.style.paddingTop = '0';
+                doneContainer.style.paddingTop = '8px';
                 doneContainer.style.paddingBottom = '0';
                 isDoneCollapsed = true;
             } else {
@@ -5998,9 +6004,12 @@ function setupEventListeners() {
                 doneMaxHeight = newHeight;
                 doneContainer.style.maxHeight = `${newHeight}px`;
 
-                // If fully hidden, we might want to ensure padding doesn't show
-                if (newHeight <= 32) {
+                if (newHeight === 0) {
                     doneContainer.style.paddingTop = '0';
+                    doneContainer.style.paddingBottom = '0';
+                    isDoneCollapsed = true;
+                } else if (newHeight <= 32) {
+                    doneContainer.style.paddingTop = '8px';
                     doneContainer.style.paddingBottom = '0';
                     isDoneCollapsed = true;
                 } else {
