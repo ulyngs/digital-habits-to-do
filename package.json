@@ -1,6 +1,6 @@
 {
   "name": "redd-todo",
-  "version": "2.7.8",
+  "version": "2.7.9",
   "description": "ReDD To-Do: Goals in Sight - keep your goals in sight and get back to what you wanted to do",
   "scripts": {
     "dev": "tauri dev",
