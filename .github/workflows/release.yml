@@ -199,9 +199,16 @@ jobs:
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
           MAS_BUILD_NUMBER: ${{ inputs.mas_build_number || '' }}
         run: |
+          set -euo pipefail
+          : "${KEYCHAIN_PATH:?KEYCHAIN_PATH missing — import step must run first}"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          EXISTING_KEYCHAINS="$(security list-keychains -d user | sed -E 's/^ *"//;s/"$//' | tr '\n' ' ')"
+          # shellcheck disable=SC2086
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $EXISTING_KEYCHAINS
           security default-keychain -s "$KEYCHAIN_PATH"
+          echo "Codesigning identities before build:mas:"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH" || true
           npm run build:mas
 
       - name: Stage versioned pkg

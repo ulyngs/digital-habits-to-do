@@ -107,6 +107,98 @@ function getTeamIdFromIdentity(identity) {
   return match ? match[1] : null;
 }
 
+/** Trim secrets that often pick up a trailing newline or quotes from the GitHub UI. */
+function trimIdentity(value) {
+  return (value || '')
+    .trim()
+    .replace(/^["']|["']$/g, '');
+}
+
+/**
+ * Prefer the SHA-1 hash from `security find-identity` when available — more
+ * reliable in CI than the human-readable name (and avoids subtle whitespace
+ * mismatches). Falls back to the original name string.
+ */
+function resolveCodesigningIdentity(preferredName, keychainPath) {
+  const name = trimIdentity(preferredName);
+  if (!name) return name;
+  const args = ['find-identity', '-v', '-p', 'codesigning'];
+  if (keychainPath) args.push(keychainPath);
+  const result = spawnSync('security', args, { cwd: repoRoot, encoding: 'utf8' });
+  const output = `${result.stdout || ''}\n${result.stderr || ''}`;
+  const lines = output.split('\n');
+  for (const line of lines) {
+    if (!line.includes(name)) continue;
+    const hashMatch = line.match(/^\s*\d+\)\s+([0-9A-F]{40})\s+"/);
+    if (hashMatch) {
+      console.log(`[build:mas] Resolved codesigning identity to hash ${hashMatch[1]}`);
+      return hashMatch[1];
+    }
+  }
+  return name;
+}
+
+function resolveInstallerIdentity(preferredName, keychainPath) {
+  const name = trimIdentity(preferredName);
+  if (!name) return name;
+  const args = ['find-identity', '-v'];
+  if (keychainPath) args.push(keychainPath);
+  const result = spawnSync('security', args, { cwd: repoRoot, encoding: 'utf8' });
+  const output = `${result.stdout || ''}\n${result.stderr || ''}`;
+  for (const line of output.split('\n')) {
+    if (!line.includes(name)) continue;
+    const hashMatch = line.match(/^\s*\d+\)\s+([0-9A-F]{40})\s+"/);
+    if (hashMatch) {
+      console.log(`[build:mas] Resolved installer identity to hash ${hashMatch[1]}`);
+      return hashMatch[1];
+    }
+  }
+  return name;
+}
+
+/** Re-unlock the ephemeral CI keychain immediately before codesign/productbuild. */
+function ensureCiKeychainReady() {
+  const keychainPath = (process.env.KEYCHAIN_PATH || '').trim();
+  const keychainPassword = process.env.KEYCHAIN_PASSWORD || '';
+  if (!keychainPath) return null;
+  if (!fs.existsSync(keychainPath)) {
+    throw new Error(`KEYCHAIN_PATH does not exist: ${keychainPath}`);
+  }
+  if (keychainPassword) {
+    runOrThrow('security', ['unlock-keychain', '-p', keychainPassword, keychainPath]);
+    runOrThrow('security', [
+      'set-key-partition-list',
+      '-S',
+      'apple-tool:,apple:,codesign:',
+      '-s',
+      '-k',
+      keychainPassword,
+      keychainPath
+    ]);
+  }
+  // Keep CI keychain first; retain any other user keychains for intermediates.
+  const listed = spawnSync('security', ['list-keychains', '-d', 'user'], {
+    cwd: repoRoot,
+    encoding: 'utf8'
+  });
+  const others = (listed.stdout || '')
+    .split('\n')
+    .map((l) => l.trim().replace(/^"|"$/g, ''))
+    .filter((l) => l && l !== keychainPath);
+  runOrThrow('security', ['list-keychains', '-d', 'user', '-s', keychainPath, ...others]);
+  runOrThrow('security', ['default-keychain', '-s', keychainPath]);
+  console.log(`[build:mas] Using CI keychain: ${keychainPath}`);
+  return keychainPath;
+}
+
+function codesignArgs(identity, entitlementsPath, targetPath, keychainPath) {
+  const args = ['--force', '--sign', identity];
+  if (keychainPath) args.push('--keychain', keychainPath);
+  if (entitlementsPath) args.push('--entitlements', entitlementsPath);
+  args.push('--timestamp=none', targetPath);
+  return args;
+}
+
 function extractPlistString(xml, key) {
   if (!xml || !key) return null;
   const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -222,11 +314,12 @@ if (!fs.existsSync(cargoTomlPath)) {
   fail(`Missing Cargo.toml: ${cargoTomlPath}`);
 }
 
-const installerIdentity =
+const installerIdentityRaw =
   process.env.APPLE_INSTALLER_IDENTITY ||
   (process.env.APPLE_IDENTITY && /installer/i.test(process.env.APPLE_IDENTITY) ? process.env.APPLE_IDENTITY : null) ||
   autoDetectInstallerIdentity();
-if (!installerIdentity) {
+const installerIdentityName = trimIdentity(installerIdentityRaw);
+if (!installerIdentityName) {
   if (optional) {
     skip(
       'Skipping .pkg generation because APPLE_INSTALLER_IDENTITY is not set.\n' +
@@ -240,22 +333,23 @@ if (!installerIdentity) {
   );
 }
 
-console.log(`[build:mas] Using installer identity: ${installerIdentity}`);
+console.log(`[build:mas] Using installer identity: ${installerIdentityName}`);
 
-const appIdentity =
+const appIdentityRaw =
   process.env.APPLE_APP_IDENTITY ||
   process.env.APPLE_DISTRIBUTION_IDENTITY ||
   autoDetectAppIdentity() ||
   (process.env.APPLE_IDENTITY && process.env.APPLE_IDENTITY.includes(':') ? process.env.APPLE_IDENTITY : null);
-if (!appIdentity) {
+const appIdentityName = trimIdentity(appIdentityRaw);
+if (!appIdentityName) {
   fail(
     'Missing app signing identity.\n' +
     'Set APPLE_APP_IDENTITY (or APPLE_DISTRIBUTION_IDENTITY), e.g.:\n' +
     '  APPLE_APP_IDENTITY="Apple Distribution: Your Company (TEAMID)" npm run build:mas'
   );
 }
-console.log(`[build:mas] Using app identity: ${appIdentity}`);
-const teamId = getTeamIdFromIdentity(appIdentity);
+console.log(`[build:mas] Using app identity: ${appIdentityName}`);
+const teamId = getTeamIdFromIdentity(appIdentityName);
 
 if (!fs.existsSync(masEntitlementsPath) || !fs.existsSync(masInheritEntitlementsPath)) {
   fail(
@@ -358,29 +452,18 @@ try {
     console.log(`[build:mas] Stamped CFBundleVersion=${masBuildNumber}`);
   }
 
-  // 4) Ensure sandbox entitlements are signed onto executable payloads required by Transporter.
+  // 4) Re-select the CI keychain (long Rust builds can drop it from the
+  // search list) and sign executable payloads required by Transporter.
+  const keychainPath = ensureCiKeychainReady();
+  const appIdentity = resolveCodesigningIdentity(appIdentityName, keychainPath);
+  const installerIdentity = resolveInstallerIdentity(installerIdentityName, keychainPath);
+
   const remindersConnectorPath = path.join(appBundlePath, 'Contents', 'Resources', 'reminders-connector');
   if (fs.existsSync(remindersConnectorPath)) {
-    runOrThrow('codesign', [
-      '--force',
-      '--sign',
-      appIdentity,
-      '--entitlements',
-      masInheritEntitlementsPath,
-      '--timestamp=none',
-      remindersConnectorPath
-    ]);
+    runOrThrow('codesign', codesignArgs(appIdentity, masInheritEntitlementsPath, remindersConnectorPath, keychainPath));
   }
 
-  runOrThrow('codesign', [
-    '--force',
-    '--sign',
-    appIdentity,
-    '--entitlements',
-    tempMasEntitlementsPath,
-    '--timestamp=none',
-    appBundlePath
-  ]);
+  runOrThrow('codesign', codesignArgs(appIdentity, tempMasEntitlementsPath, appBundlePath, keychainPath));
 
   // 5) Build MAS upload package (.pkg) for Transporter.
   const outputDir = path.join(repoRoot, 'for-distribution');
@@ -388,14 +471,16 @@ try {
   const pkgPath = path.join(outputDir, 'ReDD-To-Do.pkg');
   if (fs.existsSync(pkgPath)) fs.rmSync(pkgPath, { force: true });
 
-  runOrThrow('productbuild', [
+  // productbuild has no portable --keychain flag; keychain was set as default above.
+  const productbuildArgs = [
     '--component',
     appBundlePath,
     '/Applications',
     '--sign',
     installerIdentity,
     pkgPath
-  ]);
+  ];
+  runOrThrow('productbuild', productbuildArgs);
 
   console.log(`\n[build:mas] Done. Transporter package:\n${pkgPath}\n`);
 } catch (err) {
