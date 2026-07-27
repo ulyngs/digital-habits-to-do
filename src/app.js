@@ -1070,10 +1070,14 @@ function finishCommonInit() {
     // Apply saved max height
     if (doneMaxHeight !== undefined && doneMaxHeight !== null) {
         doneContainer.style.maxHeight = `${doneMaxHeight}px`;
-        if (doneMaxHeight === 0) {
+        if (doneMaxHeight <= 32) {
             doneContainer.style.paddingTop = '0';
             doneContainer.style.paddingBottom = '0';
+            isDoneCollapsed = true;
+        } else {
+            isDoneCollapsed = false;
         }
+        doneContainer.classList.toggle('collapsed', isDoneCollapsed);
     }
 
     // Migration: Create default group if none exists
@@ -5088,13 +5092,16 @@ function setupEventListeners() {
                 doneContainer.style.maxHeight = `${collapsedHeight}px`;
                 doneContainer.style.paddingTop = '0';
                 doneContainer.style.paddingBottom = '0';
+                isDoneCollapsed = true;
             } else {
                 // Expand to show tasks
                 doneMaxHeight = Math.min(expandedHeight, window.innerHeight - 150);
                 doneContainer.style.maxHeight = `${doneMaxHeight}px`;
                 doneContainer.style.paddingTop = '8px';
                 doneContainer.style.paddingBottom = '16px';
+                isDoneCollapsed = false;
             }
+            doneContainer.classList.toggle('collapsed', isDoneCollapsed);
             saveData();
         });
     }
@@ -5992,13 +5999,16 @@ function setupEventListeners() {
                 doneContainer.style.maxHeight = `${newHeight}px`;
 
                 // If fully hidden, we might want to ensure padding doesn't show
-                if (newHeight === 0) {
+                if (newHeight <= 32) {
                     doneContainer.style.paddingTop = '0';
                     doneContainer.style.paddingBottom = '0';
+                    isDoneCollapsed = true;
                 } else {
                     doneContainer.style.paddingTop = '8px';
                     doneContainer.style.paddingBottom = '16px';
+                    isDoneCollapsed = false;
                 }
+                doneContainer.classList.toggle('collapsed', isDoneCollapsed);
             };
 
             const handleMouseUp = () => {

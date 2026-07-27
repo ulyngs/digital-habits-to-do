@@ -1684,17 +1684,23 @@ body.is-reordering * {
 
 .done-toggle {
     display: flex;
-    flex-direction: row-reverse;
+    flex-direction: row;
     align-items: center;
     cursor: pointer;
-    gap: 6px;
+    gap: 4px;
     padding: 4px 0;
+    line-height: 1;
 }
 
-.arrow-down-icon {
-    display: flex;
-    align-items: center;
+.done-chevron {
+    flex-shrink: 0;
+    display: block;
     color: var(--text-tertiary);
+    transition: transform 0.15s ease;
+}
+
+.done-container:not(.collapsed) .done-chevron {
+    transform: rotate(90deg);
 }
 
 .delete-all-btn {
