@@ -1141,10 +1141,14 @@ body.is-reordering * {
 }
 
 .task-item.has-open-menu {
-    z-index: 250;
+    z-index: 1;
 }
 
 /* Freeze hover-induced row motion while menu is open to prevent flicker. */
+.task-menu-open .task-item {
+    transition: none;
+}
+
 .task-menu-open .task-item:hover {
     box-shadow: 0 1px 2px rgba(30, 45, 62, 0.04);
     transform: none;
@@ -1244,8 +1248,7 @@ body.is-reordering * {
     display: none;
 }
 
-/* Done list: menu stays the normal dropdown (upward was clipped by .done-tasks / .done-container overflow).
-   Cap width to the completed-task card using this row as a size container — not .hover-actions width.
+/* Done list: Cap width to the completed-task card using this row as a size container — not .hover-actions width.
    Anchor to .task-actions (not .hover-actions) so `right: 0` lines up with the row’s true right edge past fav/meta. */
 .done-tasks .task-item {
     container-type: inline-size;
@@ -1267,6 +1270,22 @@ body.is-reordering * {
     width: max-content;
     max-width: 100cqw;
     box-sizing: border-box;
+}
+
+.task-menu.opens-upward {
+    top: auto;
+    bottom: 100%;
+}
+
+/* Menus paint above add-task (z-index 5), stay below sticky footer (z-index 100). */
+.tasks-container:has(.has-open-menu),
+.done-container:has(.has-open-menu) {
+    z-index: 10;
+    overflow: visible;
+}
+
+.done-tasks:has(.has-open-menu) {
+    overflow: visible;
 }
 
 .done-tasks .task-menu-item {
