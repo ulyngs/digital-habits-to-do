@@ -24,6 +24,11 @@ Install/sign in to Xcode and ensure these certificates exist in your keychain:
 
 Install/download a matching **macOS App Store provisioning profile** for this app bundle ID (configured in `src-tauri/tauri.conf.json` as `identifier`).
 
+## CI auto-submit
+
+For GitHub Actions → App Store Connect (build + What’s new + submit for review),
+see [`mac-app-store-ci.md`](mac-app-store-ci.md).
+
 ## Build command
 
 ```bash

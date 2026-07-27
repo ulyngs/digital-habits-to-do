@@ -4,8 +4,25 @@ On tag pushes (`v*`) and optional manual Release builds, GitHub Actions builds
 an unsigned Store `.msix` and submits it to Partner Center with What’s new text
 from [`changelog.md`](../changelog.md). Partner Center re-signs on ingest.
 
-The Store submit job is independent of the GitHub Release job: a Partner Center
-outage does not block creating the Release (and vice versa).
+The Store submit job is independent of the GitHub Release / Mac App Store jobs:
+a Partner Center outage does not block creating the Release or submitting to
+App Store Connect (and vice versa).
+
+## What goes into Windows "What's new"
+
+[`scripts/changelog-to-store-whats-new.js`](../scripts/changelog-to-store-whats-new.js)
+is run with `--platform windows`. It keeps:
+
+- Shared bullets (directly under `## vX.Y.Z` or thematic `###` sections), and
+- Bullets under `#### Windows` (only present when there are Windows-only notes).
+
+It drops `#### macOS` / `#### Linux`, `Version:` lines, and
+release-engineering bullets (CI / Store submit / Partner Center). Output always
+uses the fixed intro + bullets + sign-off, capped at Partner Center’s 10,000
+character limit.
+
+Mac App Store uses the same script with `--platform macos` — see
+[`mac-app-store-ci.md`](mac-app-store-ci.md).
 
 ## One-time Partner Center / Entra setup
 
@@ -44,16 +61,15 @@ To-Do’s Store ID.
 
 - **Tag push `v*`:** builds x64 MSIX, creates a GitHub Release, submits to the
   Store (when secrets are set).
-- **Manual run:** checkboxes for GitHub Release and Store submit (both default
-  on).
+- **Manual run:** checkboxes for GitHub Release, Microsoft Store submit, and
+  Mac App Store submit (all default on).
 
 Flow inside [`scripts/submit-microsoft-store.ps1`](../scripts/submit-microsoft-store.ps1):
 
 1. Bundle `.msix` into `.msixbundle` (`makeappx`).
 2. Build What’s new
-   ([`scripts/changelog-to-store-whats-new.js`](../scripts/changelog-to-store-whats-new.js))
-   — friendly intro + product bullets + sign-off (skips `Version:`, macOS /
-   Mac App Store-only lines, and release-engineering bullets).
+   ([`scripts/changelog-to-store-whats-new.js`](../scripts/changelog-to-store-whats-new.js)
+   `--platform windows`) — friendly intro + product bullets + sign-off.
 3. `msstore publish <bundle> -id <productId> -nc` (upload only).
 4. Stamp `releaseNotes` + mark superseded packages `PendingDelete` →
    `msstore submission update`.
@@ -72,10 +88,17 @@ msstore apps list
 msstore submission get $env:MS_STORE_PRODUCT_ID
 ```
 
+Preview What’s new without submitting:
+
+```bash
+VERSION="$(node -p "require('./package.json').version")"
+node scripts/changelog-to-store-whats-new.js "$VERSION" --platform windows
+```
+
 ## Retry submit without rebuilding
 
-Actions → **Store submit only** → Run workflow with the release tag
-(e.g. `v2.7.7`). Downloads `.msix` from the GitHub Release and re-runs submit.
+Actions → **Microsoft store submission** → Run workflow with the release tag
+(e.g. `v2.7.8`). Downloads `.msix` from the GitHub Release and re-runs submit.
 
 Workflow: [`.github/workflows/store-submit.yml`](../.github/workflows/store-submit.yml).
 

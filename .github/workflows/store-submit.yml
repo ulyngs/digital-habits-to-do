@@ -3,15 +3,15 @@
 # Use after a Release already published .msix assets (or to retry a failed
 # Publish (Microsoft Store) job with fixed submit scripts on main).
 #
-# Actions → "Store submit only" → Run workflow → set release_tag (e.g. v2.7.7).
+# Actions → "Microsoft store submission" → Run workflow → set release_tag (e.g. v2.7.8).
 
-name: Store submit only
+name: Microsoft store submission
 
 on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: GitHub Release tag whose .msix assets to submit (e.g. v2.7.7)
+        description: GitHub Release tag whose .msix assets to submit (e.g. v2.7.8)
         required: true
         type: string
 
@@ -65,18 +65,33 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          TAG="$(echo -n "$RELEASE_TAG" | tr -d '[:space:]')"
+          if [[ -z "$TAG" ]]; then
+            echo "release_tag input is empty" >&2
+            exit 1
+          fi
+          if [[ "$TAG" != v* ]]; then
+            TAG="v${TAG}"
+            echo "Normalized release tag to $TAG"
+          fi
           mkdir -p store-packages
-          gh release download "$RELEASE_TAG" \
+          if ! gh release download "$TAG" \
+            --repo "$GH_REPO" \
             --pattern '*.msix' \
             --dir store-packages \
-            --clobber
+            --clobber; then
+            echo "Failed to download release $TAG. Recent releases:" >&2
+            gh release list --repo "$GH_REPO" --limit 8 >&2 || true
+            exit 1
+          fi
           echo "Downloaded:"
           find store-packages -type f -name '*.msix' -print
           count="$(find store-packages -type f -name '*.msix' | wc -l | tr -d ' ')"
           if [[ "$count" -lt 1 ]]; then
-            echo "No .msix assets on release $RELEASE_TAG" >&2
+            echo "No .msix assets on release $TAG" >&2
             exit 1
           fi
 
@@ -86,7 +101,8 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          TAG="${RELEASE_TAG#v}"
+          TAG="$(echo -n "$RELEASE_TAG" | tr -d '[:space:]')"
+          TAG="${TAG#v}"
           PKG="$(node -p "require('./package.json').version")"
           if [[ "$TAG" != "$PKG" ]]; then
             echo "Warning: release tag version ($TAG) != package.json ($PKG); using tag for What's new." >&2
@@ -96,7 +112,7 @@ jobs:
       - name: Build What's new from changelog
         shell: bash
         run: |
-          node scripts/changelog-to-store-whats-new.js "${{ steps.meta.outputs.version }}" --out whats_new.txt
+          node scripts/changelog-to-store-whats-new.js "${{ steps.meta.outputs.version }}" --platform windows --out whats_new.txt
           echo "=== What's new ==="
           cat whats_new.txt
 

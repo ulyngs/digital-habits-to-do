@@ -1,0 +1,91 @@
+# Mac App Store submission lane for CI (Release build / Mac App Store submission).
+#
+# Uploads the .pkg built by scripts/build-mas-package.js (npm run build:mas),
+# stamps the macOS "What's new" (from scripts/changelog-to-store-whats-new.js
+# --platform macos), and submits for review with automatic release after
+# approval — the App Store Connect equivalent of scripts/submit-microsoft-store.ps1.
+#
+# Auth: App Store Connect API key via env vars (see docs/mac-app-store-ci.md):
+#   APP_STORE_CONNECT_API_KEY_ID          Key ID
+#   APP_STORE_CONNECT_API_ISSUER_ID       Issuer ID
+#   APP_STORE_CONNECT_API_KEY_P8          base64 of the .p8 private key
+#
+# Usage:
+#   fastlane mac submit_mac_app_store version:2.7.8 pkg:"path/to.pkg" notes:whats_new_mas.txt
+#   # Retry with an already-uploaded binary (skip upload, pick build by number):
+#   fastlane mac submit_mac_app_store version:2.7.8 notes:whats_new_mas.txt build_number:2.7.8
+
+default_platform(:mac)
+
+platform :mac do
+  desc "Upload MAS pkg + What's new to App Store Connect and submit for review"
+  lane :submit_mac_app_store do |options|
+    api_key = app_store_connect_api_key(
+      key_id: ENV.fetch("APP_STORE_CONNECT_API_KEY_ID"),
+      issuer_id: ENV.fetch("APP_STORE_CONNECT_API_ISSUER_ID"),
+      key_content: ENV.fetch("APP_STORE_CONNECT_API_KEY_P8"),
+      is_key_content_base64: true
+    )
+
+    # fastlane runs lanes from the fastlane/ directory, so paths passed from
+    # the repo root won't resolve as-is — fall back to the parent directory.
+    resolve_path = lambda do |raw|
+      p = raw.to_s.strip
+      return nil if p.empty?
+      return p if File.exist?(p)
+      from_root = File.expand_path(p, "..")
+      File.exist?(from_root) ? from_root : p
+    end
+
+    version = options.fetch(:version)
+    notes_path = resolve_path.call(options.fetch(:notes))
+    UI.user_error!("What's new file not found: #{options[:notes]}") unless notes_path && File.exist?(notes_path)
+    notes = File.read(notes_path).strip
+    UI.user_error!("What's new file is empty — nothing macOS-facing to submit") if notes.empty?
+
+    # Promotional text does not reliably persist across new versions, so we
+    # stamp it explicitly on every submission. Confirm / replace with the live
+    # App Store Connect promotional text before the first CI ship
+    # (≤170 chars, single line). See docs/mac-app-store-ci.md.
+    promotional_text =
+      "Easily distracted? Keep your goal in sight with floating task " \
+      "reminders, simple task lists, and easy time tracking. ReDD To-Do is " \
+      "open-source and collects zero user data."
+
+    pkg = resolve_path.call(options[:pkg])
+    UI.user_error!("PKG not found: #{options[:pkg]}") if !options[:pkg].to_s.strip.empty? && !File.exist?(pkg.to_s)
+    build_number = options[:build_number].to_s.strip
+    build_number = nil if build_number.empty?
+
+    # App Store Connect requires whatsNew on the real listing locale. Passing
+    # only "default" never stamps it; using the wrong locale (e.g. en-US when
+    # primary is en-GB) can activate an empty extra localization and break
+    # submit. Confirm Primary Language in App Store Connect → App Information.
+    # Default here matches ReDD Blocker (English U.K.); override via
+    # ASC_PRIMARY_LOCALE if needed.
+    locale = ENV["ASC_PRIMARY_LOCALE"].to_s.strip
+    locale = "en-GB" if locale.empty?
+
+    deliver(
+      api_key: api_key,
+      app_identifier: "com.redd.do",
+      app_version: version,
+      platform: "osx",
+      pkg: pkg,
+      skip_binary_upload: pkg.nil?,
+      build_number: build_number,
+      languages: [locale],
+      release_notes: { locale => notes },
+      promotional_text: { locale => promotional_text },
+      submit_for_review: true,
+      automatic_release: true,
+      skip_screenshots: true,
+      skip_metadata: false,
+      force: true, # no interactive HTML preview in CI
+      run_precheck_before_submit: false,
+      submission_information: {
+        export_compliance_uses_encryption: false
+      }
+    )
+  end
+end

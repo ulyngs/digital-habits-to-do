@@ -346,6 +346,18 @@ try {
   const embeddedProvisioningProfilePath = path.join(appBundlePath, 'Contents', 'embedded.provisionprofile');
   fs.copyFileSync(provisioningProfilePath, embeddedProvisioningProfilePath);
 
+  // Optional CFBundleVersion override (re-upload same marketing version to ASC).
+  const masBuildNumber = (process.env.MAS_BUILD_NUMBER || process.env.APPLE_MAS_BUILD_NUMBER || '').trim();
+  if (masBuildNumber) {
+    const infoPlistPath = path.join(appBundlePath, 'Contents', 'Info.plist');
+    runOrThrow('/usr/libexec/PlistBuddy', [
+      '-c',
+      `Set :CFBundleVersion ${masBuildNumber}`,
+      infoPlistPath
+    ]);
+    console.log(`[build:mas] Stamped CFBundleVersion=${masBuildNumber}`);
+  }
+
   // 4) Ensure sandbox entitlements are signed onto executable payloads required by Transporter.
   const remindersConnectorPath = path.join(appBundlePath, 'Contents', 'Resources', 'reminders-connector');
   if (fs.existsSync(remindersConnectorPath)) {
