@@ -114,7 +114,12 @@ Flow inside [`fastlane/Fastfile`](../fastlane/Fastfile) (`submit_mac_app_store`
 lane):
 
 1. Authenticate with the App Store Connect API key.
-2. `deliver` with `platform: "osx"`: upload the `.pkg`, create/edit the App
+2. **Fail-fast preflight:** if any Mac App Store version is already waiting
+   for review, in review, or blocked by unresolved review issues, the lane
+   exits before uploading. It does **not** auto-withdraw — fix App Store
+   Connect manually, then re-run. (Prevents superseding an in-review version
+   and attaching the wrong build.)
+3. `deliver` with `platform: "osx"`: upload the `.pkg`, create/edit the App
    Store version matching `package.json`, set What's new and promotional text
    on the primary locale (not deliver's `"default"` key), wait for the build to
    finish processing, and submit for review with `automatic_release: true` and
