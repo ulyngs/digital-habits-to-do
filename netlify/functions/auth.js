@@ -77,7 +77,7 @@ exports.handler = async function (event, context) {
                         localhostUrl,
                         fallbackUrl,
                         success: true,
-                        message: 'Sending Basecamp authentication back to ReDD To-Do...'
+                        message: 'Sending Basecamp authentication back to Digital Habits: To-Do...'
                     })
                 };
             }
@@ -185,8 +185,8 @@ function escapeHtml(value) {
 
 function buildLocalBridgePage({ localhostUrl, fallbackUrl, success, message }) {
     const safeLocalhostUrl = JSON.stringify(localhostUrl);
-    const title = success ? 'Connecting ReDD To-Do' : 'Authentication Issue';
-    const primaryLabel = success ? 'Continue in ReDD To-Do' : 'Return to ReDD To-Do';
+    const title = success ? 'Connecting Digital Habits: To-Do' : 'Authentication Issue';
+    const primaryLabel = success ? 'Continue in Digital Habits: To-Do' : 'Return to Digital Habits: To-Do';
     const secondaryLabel = 'Use legacy fallback';
 
     return `<!doctype html>
@@ -264,7 +264,7 @@ function buildLocalBridgePage({ localhostUrl, fallbackUrl, success, message }) {
       }, { once: true });
 
       setTimeout(() => {
-        statusEl.textContent = 'If ReDD To-Do did not open, use the button above.';
+        statusEl.textContent = 'If Digital Habits: To-Do did not open, use the button above.';
         primaryLink.focus();
       }, 1500);
     </script>

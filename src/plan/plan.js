@@ -596,7 +596,7 @@ const PlanModule = (function () {
     }
 
     function getReddTodoTasksChipLabel() {
-        return currentLanguage === 'da' ? 'ReDD To-Do-opgaver' : 'ReDD To-Do tasks';
+        return currentLanguage === 'da' ? 'Digital Habits: To-Do-opgaver' : 'Digital Habits: To-Do tasks';
     }
 
     function appendChipColorPopover(colorWrapper, colorDot, currentColor, applyColor) {
@@ -665,7 +665,7 @@ const PlanModule = (function () {
 
         const chip = document.createElement('div');
         chip.className = 'plan-calendar-toggle plan-task-chip' + (taskChipSettings.visible ? '' : ' hidden-cal');
-        chip.title = 'Toggle ReDD To-Do tasks • Change color';
+        chip.title = 'Toggle Digital Habits: To-Do tasks • Change color';
 
         chip.innerHTML = `
             <span class="calendar-toggle-eye">${taskChipSettings.visible ? eyeOpenSVG : eyeClosedSVG}</span>

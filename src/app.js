@@ -352,7 +352,7 @@ const translations = {
         // Time
         minutes: 'm',
         rebrandOnboardingTitleHtml:
-            'Enkelt is now <span class="rebrand-onboarding-title-brand">ReDD To-Do</span>',
+            'Enkelt is now <span class="rebrand-onboarding-title-brand">Digital Habits: To-Do</span>',
         rebrandOnboardingSubtitle:
             'All functionality is unchanged — it\u2019s just a new name that reflects what the app is for.',
         rebrandOnboardingContinueBtn: 'Continue',
@@ -437,7 +437,7 @@ const translations = {
         // Time
         minutes: 'm',
         rebrandOnboardingTitleHtml:
-            'Enkelt hedder nu <span class="rebrand-onboarding-title-brand">ReDD To-Do</span>',
+            'Enkelt hedder nu <span class="rebrand-onboarding-title-brand">Digital Habits: To-Do</span>',
         rebrandOnboardingSubtitle:
             'Al funktionalitet er u\u00e6ndret \u2014 det er bare et nyt navn, der afspejler, hvad appen er til.',
         rebrandOnboardingContinueBtn: 'Fortsæt',
@@ -9153,7 +9153,7 @@ async function exportData() {
 
         if (reddIsTauri && typeof tauriAPI !== 'undefined' && tauriAPI.saveTextFile) {
             await tauriAPI.saveTextFile({
-                title: 'Export ReDD To-Do Backup',
+                title: 'Export Digital Habits: To-Do Backup',
                 defaultPath: filename,
                 contents: exportJson
             });
@@ -9223,7 +9223,7 @@ async function importDataFromFilePicker() {
     try {
         if (reddIsTauri && typeof tauriAPI !== 'undefined' && tauriAPI.openTextFile) {
             const content = await tauriAPI.openTextFile({
-                title: 'Import ReDD To-Do Backup'
+                title: 'Import Digital Habits: To-Do Backup'
             });
             if (!content) return;
             await restoreBackupData(JSON.parse(content));
