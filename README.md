@@ -1,4 +1,4 @@
-# ReDD To-Do: Goals in Sight
+# Digital Habits: To-Do
 
 Simple to-do app meant to make it easier to avoid rabbitholing with an always-on-top window displaying your current task. Cross-platform application for Mac and Windows built with Tauri.
 
@@ -26,14 +26,14 @@ Simple to-do app meant to make it easier to avoid rabbitholing with an always-on
 ## Screenshots
 
 <p align="center">
-  <img src="./docs/screenshots/RT-git-1.png" alt="ReDD To-Do — 1" width="32%" />
-  <img src="./docs/screenshots/RT-git-2.png" alt="ReDD To-Do — 2" width="32%" />
-  <img src="./docs/screenshots/RT-git-3.1.png" alt="ReDD To-Do — 3" width="32%" />
+  <img src="./docs/screenshots/RT-git-1.png" alt="Digital Habits: To-Do — 1" width="32%" />
+  <img src="./docs/screenshots/RT-git-2.png" alt="Digital Habits: To-Do — 2" width="32%" />
+  <img src="./docs/screenshots/RT-git-3.1.png" alt="Digital Habits: To-Do — 3" width="32%" />
 </p>
 <p align="center">
-  <img src="./docs/screenshots/RT-git-5.png" alt="ReDD To-Do — 5" width="32%" />
-  <img src="./docs/screenshots/RT-git-6.png" alt="ReDD To-Do — 6" width="32%" />
-  <img src="./docs/screenshots/RT-git-7.png" alt="ReDD To-Do — 7" width="32%" />
+  <img src="./docs/screenshots/RT-git-5.png" alt="Digital Habits: To-Do — 5" width="32%" />
+  <img src="./docs/screenshots/RT-git-6.png" alt="Digital Habits: To-Do — 6" width="32%" />
+  <img src="./docs/screenshots/RT-git-7.png" alt="Digital Habits: To-Do — 7" width="32%" />
 </p>
 
 ## 🚀 Usage

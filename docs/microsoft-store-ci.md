@@ -1,4 +1,4 @@
-# Microsoft Store CI submit (ReDD To-Do)
+# Microsoft Store CI submit (Digital Habits: To-Do)
 
 On tag pushes (`v*`) and optional manual Release builds, GitHub Actions builds
 an unsigned Store `.msix` and submits it to Partner Center with What’s new text
@@ -26,7 +26,7 @@ Mac App Store uses the same script with `--platform macos` — see
 
 ## One-time Partner Center / Entra setup
 
-App update APIs are supported for **free** Store products. Confirm ReDD To-Do
+App update APIs are supported for **free** Store products. Confirm Digital Habits: To-Do
 is free to download before relying on this path.
 
 You can **reuse the same Entra app** already set up for ReDD Blocker (Manager
@@ -40,7 +40,7 @@ To-Do’s Store ID.
    Microsoft Entra applications.
 3. Copy **Seller ID** (Account settings → Identifiers). It is a **number**
    (digits only) — not the Publisher GUID, not `CN=…`, not the Store `9…` ID.
-4. Copy ReDD To-Do’s **Store ID** (`9…` from the product identity / Store URL).
+4. Copy Digital Habits: To-Do’s **Store ID** (`9…` from the product identity / Store URL).
 
 ## GitHub Actions secrets (`ulyngs/redd-todo`)
 

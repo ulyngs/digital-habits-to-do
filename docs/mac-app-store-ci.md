@@ -45,7 +45,7 @@ shipping empty notes.
    `base64 -i AuthKey_XXXXXXXXXX.p8 | pbcopy`
 
 You can reuse the same API key already used for ReDD Blocker iOS if it has
-access to the ReDD To-Do app record (`com.redd.do`).
+access to the Digital Habits: To-Do app record (`com.redd.do`).
 
 ## One-time Mac App Store signing secrets
 
