@@ -1,6 +1,6 @@
 {
   "name": "redd-todo",
-  "version": "2.7.9",
+  "version": "2.8.0",
   "description": "Digital Habits: To-Do - Keep your goals in sight and get back to what you wanted to do",
   "scripts": {
     "dev": "tauri dev",

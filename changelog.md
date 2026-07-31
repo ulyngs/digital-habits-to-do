@@ -22,6 +22,16 @@ plus filtered bullets plus sign-off — never a custom headline blockquote.
 - `--platform linux` — shared + `#### Linux`
 - Always skips `Version:` lines and release-engineering bullets
 
+## v2.8.0
+
+### BRANDING
+
+- **Meet Digital Habits: To-Do!** Renamed from **ReDD To-Do** as part of
+  the move from the Reduce Digital Distraction (ReDD) Project to
+  **Centre for Digital Habits** ([digitalhabits.org](https://digitalhabits.org)).
+
+- **Version:** 2.8.0 (macOS and Windows).
+
 ## v2.7.9
 
 ### TASK MENUS
