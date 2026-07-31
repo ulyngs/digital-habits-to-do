@@ -453,7 +453,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
-          name: Digital Habits To-Do ${{ steps.meta.outputs.version }}
+          name: "Digital Habits: To-Do v${{ steps.meta.outputs.version }}"
           body_path: release-notes.md
           files: |
             for-distribution/Digital-Habits-To-Do_*.msix
