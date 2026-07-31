@@ -157,7 +157,7 @@ export APP_STORE_CONNECT_API_ISSUER_ID="<Issuer ID from App Store Connect>"
 export APP_STORE_CONNECT_API_KEY_P8="$(base64 -i /path/to/AuthKey_<KEYID>.p8)"
 npm run build:mas
 node scripts/changelog-to-store-whats-new.js "$VERSION" --platform macos --out whats_new_mas.txt
-fastlane mac submit_mac_app_store "version:${VERSION}" "pkg:for-distribution/ReDD-To-Do.pkg" notes:whats_new_mas.txt
+fastlane mac submit_mac_app_store "version:${VERSION}" "pkg:for-distribution/Digital-Habits-To-Do.pkg" notes:whats_new_mas.txt
 ```
 
 ## Manual fallback

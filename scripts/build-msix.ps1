@@ -4,7 +4,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "=== Building MSIX Package ===" -ForegroundColor Cyan
+Write-Host "=== Building MSIX Package (Digital Habits To-Do) ===" -ForegroundColor Cyan
 Write-Host ""
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
@@ -31,6 +31,9 @@ $AppVersion = $TauriConfig.version
 # MSIX requires 4-part version
 $MsixVersion = "$AppVersion.0"
 
+# Stable distribution slug for shipped Store packages (no colon / spaces).
+$ReleaseSlug = "Digital-Habits-To-Do"
+
 # Identity from .env
 $IdentityName = $env:WINDOWS_IDENTITY_NAME
 $Publisher = $env:WINDOWS_PUBLISHER
@@ -38,10 +41,11 @@ $PublisherDisplayName = $env:WINDOWS_PUBLISHER_DISPLAY_NAME
 
 if (-not $IdentityName -or -not $Publisher) {
     Write-Host "ERROR: WINDOWS_IDENTITY_NAME and WINDOWS_PUBLISHER must be set in .env" -ForegroundColor Red
+    Write-Host "  Find these under Partner Center -> Apps and games -> Digital Habits: To-Do -> Product identity" -ForegroundColor Yellow
     exit 1
 }
 
-Write-Host "  App: ReDD To-Do v$AppVersion" -ForegroundColor White
+Write-Host "  App: Digital Habits: To-Do v$AppVersion" -ForegroundColor White
 Write-Host "  Architecture: $Architecture" -ForegroundColor White
 Write-Host "  Identity: $IdentityName" -ForegroundColor White
 Write-Host ""
@@ -158,7 +162,7 @@ $manifest = @"
     ProcessorArchitecture="$msixArch" />
   
   <Properties>
-    <DisplayName>ReDD To-Do</DisplayName>
+    <DisplayName>Digital Habits: To-Do</DisplayName>
     <PublisherDisplayName>$PublisherDisplayName</PublisherDisplayName>
     <Logo>Assets\StoreLogo.scale-100.png</Logo>
   </Properties>
@@ -174,8 +178,8 @@ $manifest = @"
   <Applications>
     <Application Id="App" Executable="redd-todo.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements 
-        DisplayName="ReDD To-Do" 
-        Description="ReDD To-Do: Goals in Sight — keep your goals in sight and get back to what you wanted to do"
+        DisplayName="Digital Habits: To-Do" 
+        Description="Digital Habits: To-Do — keep your goals in sight and get back to what you wanted to do"
         BackgroundColor="transparent" 
         Square150x150Logo="Assets\Square150x150Logo.scale-100.png"
         Square44x44Logo="Assets\Square44x44Logo.scale-100.png">
@@ -217,7 +221,7 @@ Write-Host "  [4/4] Creating MSIX package..." -ForegroundColor Gray
 # Output path
 $distDir = Join-Path $ProjectRoot "for-distribution\$target"
 if (-not (Test-Path $distDir)) { New-Item -ItemType Directory -Path $distDir | Out-Null }
-$msixPath = Join-Path $distDir "ReDD-To-Do_${MsixVersion}_${msixArch}.msix"
+$msixPath = Join-Path $distDir "${ReleaseSlug}_${MsixVersion}_${msixArch}.msix"
 
 # Run makeappx
 & $makeappx.FullName pack /d $stagingDir /p $msixPath /o

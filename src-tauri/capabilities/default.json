@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default permissions for ReDD To-Do",
+  "description": "Default permissions for Digital Habits To-Do",
   "windows": [
     "main",
     "focus",

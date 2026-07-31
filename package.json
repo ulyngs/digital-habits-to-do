@@ -1,7 +1,7 @@
 {
   "name": "redd-todo",
   "version": "2.7.9",
-  "description": "ReDD To-Do: Goals in Sight - keep your goals in sight and get back to what you wanted to do",
+  "description": "Digital Habits: To-Do - Keep your goals in sight and get back to what you wanted to do",
   "scripts": {
     "dev": "tauri dev",
     "tauri:build:mas-app": "APP_STORE=1 CI=true tauri build --target universal-apple-darwin --bundles app --config src-tauri/tauri.appstore.temp.conf.json",

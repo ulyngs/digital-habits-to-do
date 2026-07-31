@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "ReDD To-Do",
+  "productName": "Digital Habits To-Do",
   "version": "2.7.9",
   "identifier": "com.redd.do",
   "build": {
@@ -49,8 +49,8 @@
     ],
     "category": "Productivity",
     "copyright": "Copyright © 2026 Centre for Digital Habits C.I.C.",
-    "shortDescription": "ReDD To-Do: Goals in Sight",
-    "longDescription": "ReDD To-Do: Goals in Sight helps you stay focused with a calm, distraction-free todo app, focus mode, and time tracking. Your data lives on your device — nothing is collected.",
+    "shortDescription": "Digital Habits: To-Do - Keep your goals in sight and get back to what you wanted to do",
+    "longDescription": "Digital Habits: To-Do helps you stay focused with a calm, distraction-free todo app, focus mode, and time tracking. Your data lives on your device — nothing is collected.",
     "macOS": {
       "entitlements": null,
       "exceptionDomain": "",

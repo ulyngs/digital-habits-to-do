@@ -40,10 +40,10 @@ This uses `scripts/build-mas-package.js`, which:
 1. Builds an App-Store-safe `.app`
 2. Detects/uses signing identities
 3. Embeds a matching provisioning profile into:
-   - `ReDD To-Do.app/Contents/embedded.provisionprofile`
+   - `Digital Habits To-Do.app/Contents/embedded.provisionprofile`
 4. Re-signs app payloads
 5. Produces the Transporter upload package:
-   - `for-distribution/ReDD-To-Do.pkg`
+   - `for-distribution/Digital-Habits-To-Do.pkg`
 
 ## Optional environment variables
 
@@ -65,11 +65,11 @@ npm run build:mas
 ## Verify before upload
 
 ```bash
-pkgutil --check-signature "for-distribution/ReDD-To-Do.pkg"
+pkgutil --check-signature "for-distribution/Digital-Habits-To-Do.pkg"
 ```
 
 You can also verify the app bundle contains an embedded provisioning profile:
 
 ```bash
-ls "src-tauri/target/universal-apple-darwin/release/bundle/macos/ReDD To-Do.app/Contents/embedded.provisionprofile"
+ls "src-tauri/target/universal-apple-darwin/release/bundle/macos/Digital Habits To-Do.app/Contents/embedded.provisionprofile"
 ```

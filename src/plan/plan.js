@@ -2250,7 +2250,7 @@ const PlanModule = (function () {
         const el = document.createElement('span');
         el.className = 'plan-note-text freeform';
 
-        // Add class for synced planner events (calendars + ReDD To-Do tasks)
+        // Add class for synced planner events (calendars + Digital Habits: To-Do tasks)
         if (note.source === 'calendar' || note.source === 'task') {
             el.classList.add('calendar-event');
         }

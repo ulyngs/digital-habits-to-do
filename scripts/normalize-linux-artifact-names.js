@@ -68,7 +68,7 @@ function main() {
     if (!ext) continue;
 
     const arch = detectArchToken(originalName);
-    const kebabName = `redd-todo-${version}${arch ? `-${arch}` : ''}${ext}`;
+    const kebabName = `Digital-Habits-To-Do-${version}${arch ? `-${arch}` : ''}${ext}`;
     if (originalName === kebabName) continue;
 
     const renamedPath = path.join(path.dirname(filePath), kebabName);

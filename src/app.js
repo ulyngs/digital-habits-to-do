@@ -9149,7 +9149,7 @@ function buildBackupExportPayload() {
 async function exportData() {
     try {
         const exportJson = `${JSON.stringify(buildBackupExportPayload(), null, 2)}\n`;
-        const filename = `redd-todo-backup-${new Date().toISOString().split('T')[0]}.json`;
+        const filename = `Digital-Habits-To-Do-backup-${new Date().toISOString().split('T')[0]}.json`;
 
         if (reddIsTauri && typeof tauriAPI !== 'undefined' && tauriAPI.saveTextFile) {
             await tauriAPI.saveTextFile({

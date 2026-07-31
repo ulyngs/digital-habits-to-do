@@ -1,4 +1,4 @@
-# Full Microsoft Store build for ReDD To-Do (CI-friendly PowerShell).
+# Full Microsoft Store build for Digital Habits: To-Do (CI-friendly PowerShell).
 #
 # 1. Compile Tauri (unsigned — Partner Center re-signs the MSIX on upload)
 # 2. Bundle NSIS/MSI with webviewInstallMode "skip"
@@ -11,7 +11,7 @@
 #   - assets/1024x1024.png for MSIX assets
 #
 # Output:
-#   for-distribution/x86_64-pc-windows-msvc/ReDD-To-Do_<version>.0_x64.msix
+#   for-distribution/x86_64-pc-windows-msvc/Digital-Habits-To-Do_<version>.0_x64.msix
 #
 # Usage:
 #   .\scripts\build-win-store.ps1
@@ -24,7 +24,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "=== ReDD To-Do Windows Build (Microsoft Store) ===" -ForegroundColor Cyan
+Write-Host "=== Digital Habits: To-Do Windows Build (Microsoft Store) ===" -ForegroundColor Cyan
 Write-Host ""
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot

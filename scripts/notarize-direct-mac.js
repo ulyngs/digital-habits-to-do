@@ -95,7 +95,7 @@ if (!appleId || !teamId || !appSpecificPassword) {
 
 const tauriConfig = getTauriConfig();
 const version = tauriConfig.version;
-const productName = tauriConfig.productName || 'ReDD To-Do';
+const productName = tauriConfig.productName || 'Digital Habits To-Do';
 if (!version) {
   fail('Missing version in src-tauri/tauri.conf.json');
 }
@@ -106,7 +106,7 @@ if (!sourceDmgPath) {
 }
 
 fs.mkdirSync(distDir, { recursive: true });
-const outputDmgPath = path.join(distDir, `redd-todo-${version}-universal.dmg`);
+const outputDmgPath = path.join(distDir, `Digital-Habits-To-Do-${version}-universal.dmg`);
 
 const appIdentity =
   tauriConfig?.bundle?.macOS?.signingIdentity ||

@@ -40,7 +40,7 @@
 #   APP_STORE_CONNECT_API_ISSUER_ID
 #   APP_STORE_CONNECT_API_KEY_P8                base64 of AuthKey_*.p8
 #
-# Reuse the same Entra app as ReDD Blocker if it already has Manager on the
+# Reuse the same Entra app as Digital Habits: Blocker if it already has Manager on the
 # Partner Center account — only MS_STORE_PRODUCT_ID must be To-Do’s Store ID.
 # Repo: ulyngs/redd-todo (git remote may still say redd-task; that redirects).
 
@@ -214,16 +214,16 @@ jobs:
       - name: Stage versioned pkg
         run: |
           VERSION="$(node -p "require('./package.json').version")"
-          test -f for-distribution/ReDD-To-Do.pkg
-          mv for-distribution/ReDD-To-Do.pkg "for-distribution/ReDD-To-Do_${VERSION}.pkg"
-          pkgutil --check-signature "for-distribution/ReDD-To-Do_${VERSION}.pkg" || true
+          test -f for-distribution/Digital-Habits-To-Do.pkg
+          mv for-distribution/Digital-Habits-To-Do.pkg "for-distribution/Digital-Habits-To-Do_${VERSION}.pkg"
+          pkgutil --check-signature "for-distribution/Digital-Habits-To-Do_${VERSION}.pkg" || true
           ls -la for-distribution/
 
       - name: Upload Mac App Store artifact
         uses: actions/upload-artifact@v4
         with:
           name: mac-app-store-pkg
-          path: for-distribution/ReDD-To-Do_*.pkg
+          path: for-distribution/Digital-Habits-To-Do_*.pkg
           if-no-files-found: error
           retention-days: 30
 
@@ -453,11 +453,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
-          name: ReDD To-Do ${{ steps.meta.outputs.version }}
+          name: Digital Habits To-Do ${{ steps.meta.outputs.version }}
           body_path: release-notes.md
           files: |
-            for-distribution/ReDD-To-Do_*.msix
-            for-distribution/ReDD-To-Do_*.pkg
+            for-distribution/Digital-Habits-To-Do_*.msix
+            for-distribution/Digital-Habits-To-Do_*.pkg
             for-distribution/*.exe
             for-distribution/*.msi
           draft: false

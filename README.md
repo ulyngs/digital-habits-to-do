@@ -105,7 +105,7 @@ Example targets:
 - `for-distribution/x86_64-unknown-linux-gnu/`
 
 For Mac App Store submission, `npm run build:mas` writes:
-- `for-distribution/ReDD-To-Do.pkg`
+- `for-distribution/Digital-Habits-To-Do.pkg`
 
 `build:mas` requires:
 - macOS
@@ -116,7 +116,7 @@ For Mac App Store submission, `npm run build:mas` writes:
 
 For Microsoft Store submission, `npm run build:win` / `npm run build:win-store` builds
 an unsigned `.msix` under:
-- `for-distribution/x86_64-pc-windows-msvc/ReDD-To-Do_<version>.0_x64.msix`
+- `for-distribution/x86_64-pc-windows-msvc/Digital-Habits-To-Do_<version>.0_x64.msix`
 
 **CI releases:** push a `v*` tag (or run Actions → **Release build**) to create a
 GitHub Release and submit the MSIX to Partner Center. Setup:

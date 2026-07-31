@@ -18,7 +18,7 @@
  *
  * Shared = bullets under the version section before any platform heading, and
  * under thematic `###` sections that are not platform names (e.g. FOCUS MODE).
- * There is no #### DESKTOP layer — ReDD To-Do is desktop-only; shared notes
+ * There is no #### DESKTOP layer — Digital Habits: To-Do is desktop-only; shared notes
  * live in the main version body.
  *
  * Character limits: Partner Center 10,000; App Store Connect "What's New" 4,000.
@@ -40,7 +40,7 @@ This update comes with some helpful improvements!`;
 
 const SIGNOFF = `Please keep suggesting improvements to the app - you can do so at https://github.com/ulyngs/redd-todo/issues
 
-We hope you're enjoying ReDD To-Do!
+We hope you're enjoying Digital Habits: To-Do!
 
 - Ulrik, Tiago, & the Centre for Digital Habits Team
 (digitalhabits.org)`;
