@@ -71,8 +71,9 @@ Flow inside [`scripts/submit-microsoft-store.ps1`](../scripts/submit-microsoft-s
    ([`scripts/changelog-to-store-whats-new.js`](../scripts/changelog-to-store-whats-new.js)
    `--platform windows`) — friendly intro + product bullets + sign-off.
 3. `msstore publish <bundle> -id <productId> -nc` (upload only).
-4. Stamp `releaseNotes` + mark superseded packages `PendingDelete` →
-   `msstore submission update`.
+4. Stamp `releaseNotes` and listing `description` from
+   [`store-listing/description.txt`](../store-listing/description.txt), and
+   mark superseded packages `PendingDelete` → `msstore submission update`.
 5. `msstore submission publish` (commit for certification).
 
 ## Local dry-run (credentials)

@@ -92,14 +92,18 @@ platform :mac do
     notes = File.read(notes_path).strip
     UI.user_error!("What's new file is empty — nothing macOS-facing to submit") if notes.empty?
 
-    # Promotional text does not reliably persist across new versions, so we
-    # stamp it explicitly on every submission. Confirm / replace with the live
-    # App Store Connect promotional text before the first CI ship
-    # (≤170 chars, single line). See docs/mac-app-store-ci.md.
-    promotional_text =
-      "Easily distracted? Keep your goal in sight with floating task " \
-      "reminders, simple task lists, and easy time tracking. ReDD To-Do is " \
-      "open-source and collects zero user data."
+    # Listing copy lives in store-listing/ so CI does not depend on leftover
+    # App Store Connect text. Promo text also does not reliably persist across
+    # versions — stamp both every submit. See docs/mac-app-store-ci.md.
+    listing_root = File.expand_path("../store-listing", __dir__)
+    description_path = File.join(listing_root, "description.txt")
+    promo_path = File.join(listing_root, "promotional_text.txt")
+    UI.user_error!("Missing #{description_path}") unless File.exist?(description_path)
+    UI.user_error!("Missing #{promo_path}") unless File.exist?(promo_path)
+    description = File.read(description_path).strip
+    promotional_text = File.read(promo_path).strip
+    UI.user_error!("store-listing/description.txt is empty") if description.empty?
+    UI.user_error!("store-listing/promotional_text.txt is empty") if promotional_text.empty?
 
     pkg = resolve_path.call(options[:pkg])
     UI.user_error!("PKG not found: #{options[:pkg]}") if !options[:pkg].to_s.strip.empty? && !File.exist?(pkg.to_s)
@@ -110,7 +114,7 @@ platform :mac do
     # only "default" never stamps it; using the wrong locale (e.g. en-US when
     # primary is en-GB) can activate an empty extra localization and break
     # submit. Confirm Primary Language in App Store Connect → App Information.
-    # Default here matches ReDD Blocker (English U.K.); override via
+    # Default here matches Digital Habits: Blocker (English U.K.); override via
     # ASC_PRIMARY_LOCALE if needed.
     locale = ENV["ASC_PRIMARY_LOCALE"].to_s.strip
     locale = "en-GB" if locale.empty?
@@ -130,6 +134,7 @@ platform :mac do
       skip_binary_upload: pkg.nil?,
       build_number: build_number,
       languages: [locale],
+      description: { locale => description },
       release_notes: { locale => notes },
       promotional_text: { locale => promotional_text },
       submit_for_review: true,

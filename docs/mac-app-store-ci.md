@@ -85,12 +85,12 @@ Information** before the first submit. Wrong locale can activate an empty
 extra localization and fail review submission (missing description / keywords /
 supportUrl / whatsNew).
 
-## Promotional text
+## Promotional text and description
 
-`fastlane/Fastfile` stamps a single-line promotional text (≤170 chars) on every
-submission — App Store Connect does not reliably carry it across new versions.
-Confirm the live promotional text in App Store Connect and update the string in
-the Fastfile if it differs.
+Listing copy lives in [`store-listing/`](../store-listing/)
+(`promotional_text.txt` ≤170 chars; `description.txt`). Fastlane stamps both
+on every Mac App Store submit so CI does not keep shipping leftover App Store
+Connect text. Edit those files when the listing copy changes.
 
 ## Version and build numbers
 
@@ -120,10 +120,12 @@ lane):
    Connect manually, then re-run. (Prevents superseding an in-review version
    and attaching the wrong build.)
 3. `deliver` with `platform: "osx"`: upload the `.pkg`, create/edit the App
-   Store version matching `package.json`, set What's new and promotional text
-   on the primary locale (not deliver's `"default"` key), wait for the build to
-   finish processing, and submit for review with `automatic_release: true` and
-   export compliance pre-answered (`export_compliance_uses_encryption: false`).
+   Store version matching `package.json`, set description, What's new, and
+   promotional text on the primary locale (not deliver's `"default"` key) from
+   [`store-listing/`](../store-listing/) + the generated What's new file, wait
+   for the build to finish processing, and submit for review with
+   `automatic_release: true` and export compliance pre-answered
+   (`export_compliance_uses_encryption: false`).
 
 ## Retry submit without rebuilding
 

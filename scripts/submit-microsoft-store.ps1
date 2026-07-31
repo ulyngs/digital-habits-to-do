@@ -17,8 +17,8 @@
 #   1. Bundle .msix into one .msixbundle (makeappx) when needed
 #   2. msstore publish -nc  (upload only; publish recreates the draft, so
 #      metadata must be applied *after* this step)
-#   3. submission get → stamp What's new + mark superseded packages
-#      PendingDelete → submission update
+#   3. submission get → stamp What's new + listing description + mark
+#      superseded packages PendingDelete → submission update
 #   4. msstore submission publish  (commit for certification)
 
 param(
@@ -31,6 +31,9 @@ param(
     [string]$ProductId = $env:MS_STORE_PRODUCT_ID,
 
     [string]$ProjectRoot = (Split-Path -Parent $PSScriptRoot),
+
+    # Long description shared with Mac App Store (store-listing/description.txt).
+    [string]$DescriptionFile = "",
 
     [switch]$Reconfigure
 )
@@ -74,6 +77,12 @@ if (-not (Test-Path -LiteralPath $PackagesDir)) {
 }
 if (-not (Test-Path -LiteralPath $WhatsNewFile)) {
     throw "WhatsNewFile not found: $WhatsNewFile"
+}
+if (-not $DescriptionFile) {
+    $DescriptionFile = Join-Path $ProjectRoot 'store-listing\description.txt'
+}
+if (-not (Test-Path -LiteralPath $DescriptionFile)) {
+    throw "DescriptionFile not found: $DescriptionFile"
 }
 
 $msixFiles = @(Get-ChildItem -Path $PackagesDir -Recurse -Filter '*.msix' -File |
@@ -172,17 +181,17 @@ try {
     Get-StoreSubmissionJson $submissionJson
 
     $patchScript = Join-Path $ProjectRoot 'scripts\patch-store-release-notes.js'
-    node $patchScript $submissionJson $WhatsNewFile $patchedJson $bundleFileName
+    node $patchScript $submissionJson $WhatsNewFile $patchedJson $bundleFileName --description $DescriptionFile
     Assert-CommandOk 'patch-store-release-notes.js'
 
     $meta = Get-Content -LiteralPath $patchedJson -Raw -Encoding utf8
-    Write-Host 'Updating submission (What''s new + PendingDelete superseded packages)…' -ForegroundColor Cyan
+    Write-Host 'Updating submission (What''s new + description + PendingDelete superseded packages)…' -ForegroundColor Cyan
     # Full update (not updateMetadata) so ApplicationPackages FileStatus is applied.
     msstore submission update $ProductId $meta
     Assert-CommandOk 'msstore submission update'
     $notesStamped = $true
     $packagesCleaned = $true
-    Write-Host 'Draft updated: release notes stamped; superseded packages PendingDelete.' -ForegroundColor Green
+    Write-Host 'Draft updated: release notes + description stamped; superseded packages PendingDelete.' -ForegroundColor Green
 } catch {
     Write-Warning "Draft metadata/package cleanup failed ($_). Committing upload as-is — remove old packages in Partner Center if needed."
     if (Test-Path -LiteralPath $submissionJson) {

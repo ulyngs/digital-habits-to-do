@@ -3,8 +3,9 @@
  * Build store "What's new" plain text from changelog.md.
  *
  * User-facing Store notes (App Store–style): fixed friendly intro, bullet list
- * of product changes, then a fixed sign-off. Skips Version lines, empty
- * platform scaffolding, and release-engineering notes (CI / Store submit / …).
+ * of product changes (no blank line after the intro line), then a fixed
+ * sign-off. Skips Version lines, empty platform scaffolding, and
+ * release-engineering notes (CI / Store submit / …).
  *
  * Usage:
  *   node scripts/changelog-to-store-whats-new.js <version> --platform windows --out whats_new.txt
@@ -202,12 +203,14 @@ function buildWhatsNew(bullets, maxChars, emptyOk) {
 
   const intro = INTRO;
   const signoff = SIGNOFF;
-  const joiner = '\n\n';
-  const fixedLen = intro.length + signoff.length + joiner.length * 2;
+  // No blank line between intro and first bullet; blank line before sign-off.
+  const afterIntro = '\n';
+  const beforeSignoff = '\n\n';
+  const fixedLen = intro.length + signoff.length + afterIntro.length + beforeSignoff.length;
 
   let list = bullets.join('\n');
   if (fixedLen + list.length > maxChars) {
-    const budget = maxChars - fixedLen - '\n\n…'.length;
+    const budget = maxChars - fixedLen - '\n…'.length;
     const kept = [];
     let used = 0;
     for (const b of bullets) {
@@ -222,7 +225,7 @@ function buildWhatsNew(bullets, maxChars, emptyOk) {
     list = `${kept.join('\n')}\n…`;
   }
 
-  return `${intro}${joiner}${list}${joiner}${signoff}`.trim();
+  return `${intro}${afterIntro}${list}${beforeSignoff}${signoff}`.trim();
 }
 
 function main() {
