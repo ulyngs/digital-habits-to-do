@@ -30,8 +30,8 @@ const tauriAPI = {
         return this.invoke('get_app_version');
     },
 
-    async getDistributionChannel() {
-        return this.invoke('get_distribution_channel');
+    async isDebugBuild() {
+        return this.invoke('is_debug_build');
     },
 
     // Reminders commands

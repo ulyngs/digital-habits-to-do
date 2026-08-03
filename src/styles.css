@@ -4740,6 +4740,50 @@ input:checked+.slider:before {
     margin-top: 2px;
 }
 
+.rebrand-definition-card {
+    --rebrand-card-bg: #f2efe8;
+    --rebrand-card-border: #1a3c34;
+    margin-top: 12px;
+    margin-bottom: 18px;
+    padding: 18px 20px 16px;
+    border: none;
+    border-left: 4px solid var(--rebrand-card-border);
+    border-radius: 14px;
+    background: var(--rebrand-card-bg);
+    text-align: left;
+}
+
+[data-theme="dark"] .rebrand-definition-card {
+    --rebrand-card-bg: rgba(255, 255, 255, 0.06);
+    --rebrand-card-border: #6db8a8;
+}
+
+.rebrand-definition-card .rebrand-definition-body {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.45;
+    color: var(--text-primary);
+    text-wrap: pretty;
+}
+
+.rebrand-definition-divider {
+    margin: 14px 0 12px;
+    border: 0;
+    border-top: 1px solid rgba(26, 60, 52, 0.12);
+}
+
+[data-theme="dark"] .rebrand-definition-divider {
+    border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+.rebrand-definition-card .rebrand-definition-footnote {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    text-wrap: pretty;
+}
+
 @media (max-width: 640px) {
     .legal-onboarding-content {
         max-width: 100%;

@@ -262,9 +262,8 @@ let eulaAcceptedAt = null;
 let eulaRevisionPendingAccept = null;
 let eulaListenersAttached = false;
 let windowControlsInitialized = false;
-let rebrandOnboardingShown = false;
-let rebrandReddTodoOnboardingShown = false;
-let distributionChannel = 'desktop';
+let digitalHabitsRebrandNoticeShown = false;
+let forceShowRebrandNoticeThisSession = false;
 
 // Translations
 const translations = {
@@ -352,9 +351,13 @@ const translations = {
         // Time
         minutes: 'm',
         rebrandOnboardingTitleHtml:
-            'Enkelt is now <span class="rebrand-onboarding-title-brand">Digital Habits: To-Do</span>',
+            'ReDD To-Do is now <span class="rebrand-onboarding-title-brand">Digital Habits: To-Do</span>',
         rebrandOnboardingSubtitle:
-            'All functionality is unchanged — it\u2019s just a new name that reflects what the app is for.',
+            'Same app, new name. Your tasks, tabs, and settings are all unchanged.',
+        rebrandOnboardingBody1Html:
+            'We’ve renamed the app because our team — previously the <strong>Reduce Digital Distraction Project</strong> — is now known as <strong>Centre for Digital Habits</strong> (<a href="https://digitalhabits.org" target="_blank" rel="noopener noreferrer" class="legal-onboarding-link" data-external-url="https://digitalhabits.org">digitalhabits.org</a>).',
+        rebrandOnboardingBody2Html:
+            'On your computer, the app is now called <strong>“Digital Habits To-Do”</strong>.',
         rebrandOnboardingContinueBtn: 'Continue',
     },
     da: {
@@ -437,9 +440,13 @@ const translations = {
         // Time
         minutes: 'm',
         rebrandOnboardingTitleHtml:
-            'Enkelt hedder nu <span class="rebrand-onboarding-title-brand">Digital Habits: To-Do</span>',
+            'ReDD To-Do hedder nu <span class="rebrand-onboarding-title-brand">Digital Habits: To-Do</span>',
         rebrandOnboardingSubtitle:
-            'Al funktionalitet er u\u00e6ndret \u2014 det er bare et nyt navn, der afspejler, hvad appen er til.',
+            'Samme app, nyt navn. Dine opgaver, faner og indstillinger er uændrede.',
+        rebrandOnboardingBody1Html:
+            'Vi har givet appen nyt navn, fordi vores team — tidligere <strong>Reduce Digital Distraction Project</strong> — nu hedder <strong>Centre for Digital Habits</strong> (<a href="https://digitalhabits.org" target="_blank" rel="noopener noreferrer" class="legal-onboarding-link" data-external-url="https://digitalhabits.org">digitalhabits.org</a>).',
+        rebrandOnboardingBody2Html:
+            'På din computer hedder appen nu <strong>”Digital Habits To-Do”</strong>.',
         rebrandOnboardingContinueBtn: 'Fortsæt',
     }
 };
@@ -897,8 +904,25 @@ function resetDevOnlyEulaAcceptance() {
     saveData();
 }
 
-function isStoreUpgradeChannel() {
-    return distributionChannel === 'mac-app-store' || distributionChannel === 'msix';
+// ---- Digital Habits rename notice ------------------------------------------
+//
+// One-time announcement for users upgrading from ReDD To-Do: the app is now
+// Digital Habits: To-Do and the organisation behind it is now the Centre for
+// Digital Habits. Shown on macOS and Windows before any other screen. Fresh
+// installs never see it (the flag is persisted silently on first run, see
+// startMainWindowWithEulaGate). Always shown on `npm run dev` via
+// resetDevOnlyRebrandNoticeShown.
+//
+// Persistence: `digitalHabitsRebrandNoticeShown` in localStorage app data.
+async function resetDevOnlyRebrandNoticeShown() {
+    // `isLocalDevRun` cannot detect `tauri dev` here: there is no dev server,
+    // so the webview always serves from the tauri:// protocol. Ask the backend.
+    if (!reddIsTauri || typeof tauriAPI === 'undefined' || !tauriAPI.isDebugBuild) return;
+    try {
+        forceShowRebrandNoticeThisSession = await tauriAPI.isDebugBuild() === true;
+    } catch (err) {
+        console.warn('[rebrand-onboarding] failed to detect debug build:', err);
+    }
 }
 
 function hasLegacyReddDoData() {
@@ -913,7 +937,8 @@ function hasLegacyReddDoData() {
 }
 
 function shouldShowRebrandOnboarding() {
-    return isStoreUpgradeChannel() && hasLegacyReddDoData() && !rebrandReddTodoOnboardingShown;
+    if (forceShowRebrandNoticeThisSession) return true;
+    return hasLegacyReddDoData() && !digitalHabitsRebrandNoticeShown;
 }
 
 function hideRebrandOnboarding() {
@@ -927,6 +952,12 @@ function applyRebrandOnboardingLanguage() {
     const subtitle = document.getElementById('rebrand-onboarding-subtitle');
     if (subtitle) subtitle.textContent = t('rebrandOnboardingSubtitle');
 
+    const body1 = document.getElementById('rebrand-onboarding-body-1');
+    if (body1) body1.innerHTML = t('rebrandOnboardingBody1Html');
+
+    const body2 = document.getElementById('rebrand-onboarding-body-2');
+    if (body2) body2.innerHTML = t('rebrandOnboardingBody2Html');
+
     const continueBtn = document.getElementById('rebrand-onboarding-continue-btn');
     if (continueBtn) continueBtn.textContent = t('rebrandOnboardingContinueBtn');
 }
@@ -939,8 +970,8 @@ function showRebrandOnboarding() {
 }
 
 function persistRebrandOnboardingShown() {
-    rebrandReddTodoOnboardingShown = true;
-    rebrandOnboardingShown = true;
+    forceShowRebrandNoticeThisSession = false;
+    digitalHabitsRebrandNoticeShown = true;
     saveData();
 }
 
@@ -1032,6 +1063,11 @@ async function startMainWindowWithEulaGate() {
     if (shouldShowRebrandOnboarding()) {
         showRebrandOnboarding();
         return;
+    }
+    if (!digitalHabitsRebrandNoticeShown) {
+        // Fresh install: mark the rename notice as seen without showing it, so
+        // creating tasks or accepting the EULA later never retriggers it.
+        persistRebrandOnboardingShown();
     }
     const needsEula = eulaAccepted !== true || eulaAcceptedVersion !== CURRENT_EULA_REVISION;
     if (needsEula) {
@@ -1185,13 +1221,7 @@ function initApp() {
     }
 
     void (async () => {
-        if (reddIsTauri && typeof tauriAPI !== 'undefined' && tauriAPI.getDistributionChannel) {
-            try {
-                distributionChannel = await tauriAPI.getDistributionChannel() || 'desktop';
-            } catch (err) {
-                console.warn('[rebrand-onboarding] failed to detect distribution channel:', err);
-            }
-        }
+        await resetDevOnlyRebrandNoticeShown();
         await startMainWindowWithEulaGate();
     })();
 }
@@ -7945,8 +7975,7 @@ function saveData() {
         enableGroups: enableGroups,
         enablePlan: enablePlan,
         favouritesOrder: favouritesOrder,
-        rebrandOnboardingShown,
-        rebrandReddTodoOnboardingShown,
+        digitalHabitsRebrandNoticeShown,
         eulaAccepted,
         eulaAcceptedVersion,
         eulaAcceptedAt
@@ -8043,8 +8072,7 @@ function loadData() {
             enableGroups = data.enableGroups !== undefined ? data.enableGroups : (Object.keys(groups).length > 0); // Default to true if groups exist, else false
             enablePlan = data.enablePlan !== undefined ? data.enablePlan : false;
             favouritesOrder = data.favouritesOrder || [];
-            rebrandOnboardingShown = data.rebrandOnboardingShown === true;
-            rebrandReddTodoOnboardingShown = data.rebrandReddTodoOnboardingShown === true;
+            digitalHabitsRebrandNoticeShown = data.digitalHabitsRebrandNoticeShown === true;
             eulaAccepted = data.eulaAccepted === true;
             eulaAcceptedVersion = data.eulaAcceptedVersion != null ? String(data.eulaAcceptedVersion) : null;
             eulaAcceptedAt = data.eulaAcceptedAt != null ? data.eulaAcceptedAt : null;

@@ -11,6 +11,10 @@
 </head>
 
 <body>
+    <!-- One-time rename announcement for users upgrading from ReDD To-Do.
+         Shown before anything else on the first launch after the Digital
+         Habits rebrand; fresh installs never see it (the shown-flag is set
+         silently on first run). Copy applied by applyRebrandOnboardingLanguage. -->
     <div id="rebrand-onboarding" class="onboarding-screen hidden">
         <div class="eula-title-bar" data-tauri-drag-region aria-hidden="true">
             <div id="rebrand-window-controls" class="window-controls hidden">
@@ -44,8 +48,13 @@
                     <img id="rebrand-onboarding-app-icon" src="images/icon.svg" alt="Digital Habits: To-Do app icon"
                         class="onboarding-app-icon">
                 </div>
-                <h1 id="rebrand-onboarding-title">Enkelt is now <span class="rebrand-onboarding-title-brand">Digital Habits: To-Do</span></h1>
-                <p id="rebrand-onboarding-subtitle" class="rebrand-onboarding-subtitle">All functionality is unchanged — it's just a new name that reflects what the app is for.</p>
+                <h1 id="rebrand-onboarding-title">ReDD To-Do is now <span class="rebrand-onboarding-title-brand">Digital Habits: To-Do</span></h1>
+                <p id="rebrand-onboarding-subtitle" class="rebrand-onboarding-subtitle">Same app, new name. Your tasks, tabs, and settings are all unchanged.</p>
+                <div class="rebrand-definition-card">
+                    <p id="rebrand-onboarding-body-1" class="rebrand-definition-body"></p>
+                    <hr class="rebrand-definition-divider" aria-hidden="true">
+                    <p id="rebrand-onboarding-body-2" class="rebrand-definition-footnote"></p>
+                </div>
                 <button id="rebrand-onboarding-continue-btn" type="button"
                     class="modal-btn primary-btn onboarding-primary-btn rebrand-onboarding-continue-btn">Continue</button>
             </div>

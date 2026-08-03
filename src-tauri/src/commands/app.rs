@@ -21,22 +21,11 @@ pub fn open_external_url(url: String) -> Result<(), String> {
     crate::opener::open_external(trimmed)
 }
 
-/// Report whether this build is intended for a store-distributed channel.
+/// Report whether this is a debug build. The frontend's `isLocalDevRun` cannot
+/// detect `tauri dev` here because there is no dev server — the webview always
+/// serves from the tauri:// protocol — so dev-only gates ask the backend.
 #[command]
-pub fn get_distribution_channel() -> String {
-    if cfg!(target_os = "macos") {
-        if option_env!("APP_STORE").is_some() {
-            return "mac-app-store".to_string();
-        }
-        return "direct".to_string();
-    }
-
-    if cfg!(target_os = "windows") {
-        if option_env!("WINDOWS_STORE").is_some() {
-            return "msix".to_string();
-        }
-        return "desktop".to_string();
-    }
-
-    "desktop".to_string()
+pub fn is_debug_build() -> bool {
+    cfg!(debug_assertions)
 }
+
