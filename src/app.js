@@ -102,6 +102,19 @@ const reddIpc = {
                         }
                     }
                 },
+                'start-google-auth': async () => {
+                    try {
+                        await tauriAPI.invoke('start_google_auth');
+                    } catch (e) {
+                        console.error('[Google OAuth] Command failed:', e);
+                        // Don't leave the button stuck on "Connecting..." if the
+                        // command rejects without emitting google-auth-error.
+                        if (googleConnectBtn) {
+                            googleConnectBtn.textContent = t('connect');
+                            googleConnectBtn.disabled = false;
+                        }
+                    }
+                },
                 'window-drag-start': () => tauriAPI.startDrag(),
                 'window-drag-end': () => { } // No-op, drag ends automatically
             };
@@ -322,6 +335,9 @@ const translations = {
         connectBasecamp: 'Basecamp',
         connectedBasecamp: 'Basecamp: Connected',
         basecampInfo: 'Sync your to-do lists with Basecamp project management software.',
+        connectGoogleTasks: 'Google Tasks',
+        connectedGoogleTasks: 'Google Tasks: Connected',
+        googleTasksInfo: 'Sync your to-do lists with Google Tasks.',
         disconnect: 'Disconnect',
         yourVersion: 'Your version',
         close: 'Close',
@@ -411,6 +427,9 @@ const translations = {
         connectBasecamp: 'Basecamp',
         connectedBasecamp: 'Basecamp: Forbundet',
         basecampInfo: 'Synkroniser dine to-do lister med Basecamp projektstyringssoftware.',
+        connectGoogleTasks: 'Google Tasks',
+        connectedGoogleTasks: 'Google Tasks: Forbundet',
+        googleTasksInfo: 'Synkroniser dine to-do lister med Google Tasks.',
         disconnect: 'Afbryd forbindelse',
         yourVersion: 'Din version',
         close: 'Luk',
@@ -504,6 +523,14 @@ let remindersConfig = {
     isConnected: false
 };
 
+// Google Tasks State
+let googleTasksConfig = {
+    accessToken: null,
+    refreshToken: null,
+    email: null,
+    isConnected: false
+};
+
 
 // DOM elements
 const groupsContainer = document.querySelector('.groups');
@@ -573,6 +600,13 @@ const remindersSelection = document.getElementById('reminders-selection');
 const remindersListSelect = document.getElementById('reminders-list-select');
 const remindersSelectionLabel = remindersSelection ? remindersSelection.querySelector('.bc-label') : null;
 const disconnectRemindersBtn = document.getElementById('disconnect-reminders-btn');
+// Google Tasks Elements
+const googleConnectBtn = document.getElementById('google-connect-btn');
+const googleConnectionStatus = document.getElementById('google-connection-status');
+const googleAccountInfo = document.getElementById('google-account-info');
+const disconnectGoogleBtn = document.getElementById('disconnect-google-btn');
+const googleSelection = document.getElementById('google-selection');
+const googleListSelect = document.getElementById('google-list-select');
 // New elements
 const oauthConnectBtn = document.getElementById('oauth-connect-btn');
 const toggleManualAuthBtn = document.getElementById('toggle-manual-auth');
@@ -689,6 +723,7 @@ window.addEventListener('storage', (e) => {
             renderTasks();
             updateBasecampUI();
             updateRemindersUI();
+            updateGoogleTasksUI();
         }
     }
 });
@@ -1149,6 +1184,7 @@ function finishCommonInit() {
 
     updateBasecampUI();
     updateRemindersUI();
+    updateGoogleTasksUI();
 
     updatePlanButtonVisibility();
 
@@ -1243,7 +1279,7 @@ function switchToGroup(groupId) {
 }
 
 // Tab management
-function createNewTab(name, bcProjectId = null, bcListId = null, remindersListId = null, groupIdOverride = null) {
+function createNewTab(name, bcProjectId = null, bcListId = null, remindersListId = null, groupIdOverride = null, googleTaskListId = null) {
     const tabId = generateUniqueCollectionId('tab', tabs);
     const tabName = name.trim() || 'New Tab';
 
@@ -1254,6 +1290,7 @@ function createNewTab(name, bcProjectId = null, bcListId = null, remindersListId
         basecampProjectId: bcProjectId,
         basecampListId: bcListId,
         remindersListId: remindersListId, // Reminders List ID
+        googleTaskListId: googleTaskListId, // Google Tasks list ID
         groupId: groupIdOverride || currentGroupId // Assign to explicit group or current group
     };
 
@@ -1267,6 +1304,10 @@ function createNewTab(name, bcProjectId = null, bcListId = null, remindersListId
     // If connected to Reminders, fetch tasks immediately
     if (remindersListId) {
         syncRemindersList(tabId);
+    }
+    // If connected to Google Tasks, fetch tasks immediately
+    if (googleTaskListId) {
+        syncGoogleList(tabId);
     }
 
     return tabId;
@@ -1334,29 +1375,24 @@ function updateSyncButtonState() {
         // Determine connection status for all relevant synced services
         let hasBasecamp = false;
         let hasReminders = false;
+        let hasGoogle = false;
         syncedTabsWithFavourites.forEach(tabId => {
             const tab = tabs[tabId];
             if (tab.basecampListId) hasBasecamp = true;
             if (tab.remindersListId) hasReminders = true;
+            if (tab.googleTaskListId) hasGoogle = true;
         });
 
-        const basecampDisconnected = hasBasecamp && !basecampConfig.isConnected;
-        const remindersDisconnected = hasReminders && !remindersConfig.isConnected;
+        const disconnected = disconnectedSyncServices(hasBasecamp, hasReminders, hasGoogle);
 
         syncBtn.classList.remove('hidden');
 
-        if (basecampDisconnected || remindersDisconnected) {
+        if (disconnected.length > 0) {
             syncBtn.classList.add('disconnected');
-            const services = [];
-            if (basecampDisconnected) services.push('Basecamp');
-            if (remindersDisconnected) services.push('Apple Reminders');
-            syncBtn.title = `${services.join(' & ')} disconnected - click to reconnect`;
+            syncBtn.title = `${disconnected.join(' & ')} disconnected - click to reconnect`;
         } else {
             syncBtn.classList.remove('disconnected');
-            const services = [];
-            if (hasBasecamp) services.push('Basecamp');
-            if (hasReminders) services.push('Apple Reminders');
-            syncBtn.title = 'Sync favourites with ' + services.join(' & ');
+            syncBtn.title = 'Sync favourites with ' + syncServiceNames(hasBasecamp, hasReminders, hasGoogle).join(' & ');
         }
         return;
     }
@@ -1370,8 +1406,9 @@ function updateSyncButtonState() {
     const tab = tabs[currentTabId];
     const isSyncedToBasecamp = !!tab.basecampListId;
     const isSyncedToReminders = !!tab.remindersListId;
+    const isSyncedToGoogle = !!tab.googleTaskListId;
 
-    if (!isSyncedToBasecamp && !isSyncedToReminders) {
+    if (!isSyncedToBasecamp && !isSyncedToReminders && !isSyncedToGoogle) {
         // Not a synced list - hide button
         syncBtn.classList.add('hidden');
         syncBtn.classList.remove('disconnected');
@@ -1380,22 +1417,36 @@ function updateSyncButtonState() {
     }
 
     // Check connection status for the relevant service(s)
-    const basecampDisconnected = isSyncedToBasecamp && !basecampConfig.isConnected;
-    const remindersDisconnected = isSyncedToReminders && !remindersConfig.isConnected;
+    const disconnected = disconnectedSyncServices(isSyncedToBasecamp, isSyncedToReminders, isSyncedToGoogle);
 
     syncBtn.classList.remove('hidden');
 
-    if (basecampDisconnected || remindersDisconnected) {
+    if (disconnected.length > 0) {
         // Show button but mark as disconnected
         syncBtn.classList.add('disconnected');
-        const services = [];
-        if (basecampDisconnected) services.push('Basecamp');
-        if (remindersDisconnected) services.push('Apple Reminders');
-        syncBtn.title = `${services.join(' & ')} disconnected - click to reconnect`;
+        syncBtn.title = `${disconnected.join(' & ')} disconnected - click to reconnect`;
     } else {
         syncBtn.classList.remove('disconnected');
-        syncBtn.title = 'Sync with ' + (isSyncedToBasecamp ? 'Basecamp' : '') + (isSyncedToBasecamp && isSyncedToReminders ? ' & ' : '') + (isSyncedToReminders ? 'Apple Reminders' : '');
+        syncBtn.title = 'Sync with ' + syncServiceNames(isSyncedToBasecamp, isSyncedToReminders, isSyncedToGoogle).join(' & ');
     }
+}
+
+/** Display names for the sync services a tab (or set of tabs) is linked to. */
+function syncServiceNames(hasBasecamp, hasReminders, hasGoogle) {
+    const services = [];
+    if (hasBasecamp) services.push('Basecamp');
+    if (hasReminders) services.push('Apple Reminders');
+    if (hasGoogle) services.push('Google Tasks');
+    return services;
+}
+
+/** Of those services, the ones that are linked but not currently connected. */
+function disconnectedSyncServices(hasBasecamp, hasReminders, hasGoogle) {
+    return syncServiceNames(
+        hasBasecamp && !basecampConfig.isConnected,
+        hasReminders && !remindersConfig.isConnected,
+        hasGoogle && !googleTasksConfig.isConnected
+    );
 }
 
 function closeTab(tabId) {
@@ -1494,6 +1545,7 @@ function applySerializedAppState(serializedState) {
             renderTasks();
             updateBasecampUI();
             updateRemindersUI();
+            updateGoogleTasksUI();
             updatePlanButtonVisibility();
 
             let savedView = localStorage.getItem('currentView');
@@ -1592,6 +1644,13 @@ async function performUndo() {
                     const newId = await createRemindersTask(item.remindersListId, task.text);
                     if (newId) {
                         task.remindersId = newId;
+                    }
+                }
+
+                if (item.googleTaskListId && googleTasksConfig.isConnected && task.googleTaskId) {
+                    const newId = await createGoogleTask(item.googleTaskListId, task);
+                    if (newId) {
+                        task.googleTaskId = newId;
                     }
                 }
 
@@ -1745,7 +1804,8 @@ function addTask(text) {
         createdAt: new Date().toISOString(),
         expectedDuration: duration,
         actualDuration: null,
-        basecampId: null
+        basecampId: null,
+        googleTaskId: null
     };
 
     let targetTabId = currentTabId;
@@ -1762,6 +1822,17 @@ function addTask(text) {
     // If this is a Basecamp list, create the todo in Basecamp
     if (tabs[targetTabId].basecampListId && basecampConfig.isConnected) {
         createBasecampTodo(targetTabId, task);
+    }
+
+    // If this is a Google Tasks list, create the task in Google Tasks
+    const googleListId = tabs[targetTabId].googleTaskListId;
+    if (googleListId && googleTasksConfig.isConnected) {
+        createGoogleTask(googleListId, task).then(newId => {
+            if (newId) {
+                task.googleTaskId = newId;
+                saveData();
+            }
+        });
     }
 
     renderTasks();
@@ -1799,7 +1870,8 @@ function deleteTask(taskId) {
             index: taskIndex,
             tabId: tabId,
             basecampListId: tab.basecampListId,
-            remindersListId: tab.remindersListId
+            remindersListId: tab.remindersListId,
+            googleTaskListId: tab.googleTaskListId
         };
         showUndoToast(`Task deleted`);
 
@@ -1811,6 +1883,11 @@ function deleteTask(taskId) {
         // If Reminders connected, delete remote
         if (tab.remindersListId && remindersConfig.isConnected && task.remindersId) {
             deleteRemindersTask(task.remindersId);
+        }
+
+        // If Google Tasks connected, delete remote
+        if (tab.googleTaskListId && googleTasksConfig.isConnected && task.googleTaskId) {
+            deleteGoogleTask(tab.googleTaskListId, task.googleTaskId);
         }
 
         tab.tasks.splice(taskIndex, 1);
@@ -2265,6 +2342,11 @@ function toggleTask(taskId) {
     // If Reminders connected, sync status
     if (tab.remindersListId && remindersConfig.isConnected && task.remindersId) {
         updateRemindersCompletion(task.remindersId, task.completed);
+    }
+
+    // If Google Tasks connected, sync status
+    if (tab.googleTaskListId && googleTasksConfig.isConnected && task.googleTaskId) {
+        updateGoogleTaskStatus(tab.googleTaskListId, task.googleTaskId, task.completed);
     }
 
     // Find the task element in the DOM and apply visual change immediately
@@ -2778,6 +2860,9 @@ function showGroupModal() {
         remindersSelection.classList.add('hidden');
     }
 
+    // Google Tasks has no list-group concept, so it is only offered per list.
+    if (googleSelection) googleSelection.classList.add('hidden');
+
     // Reset color picker and select next available color for groups
     const colorSwatches = document.querySelectorAll('.color-swatch');
     colorSwatches.forEach(swatch => {
@@ -2813,6 +2898,7 @@ function showGroupRenameModal(groupId) {
         tabNameModal.classList.remove('hidden');
         basecampSelection.classList.add('hidden');
         remindersSelection.classList.add('hidden');
+        if (googleSelection) googleSelection.classList.add('hidden');
         tabNameModal.dataset.mode = 'group-rename';
 
         // Select logic for color
@@ -3420,13 +3506,14 @@ function getTaskContext(taskId) {
 }
 
 // Helper to determine the sync type of a tab
-// Returns: 'reminders', 'basecamp', or 'local'
+// Returns: 'reminders', 'basecamp', 'google', or 'local'
 function getTabSyncType(tabId) {
     const tab = tabs[tabId];
     if (!tab) return null;
 
     if (tab.remindersListId) return 'reminders';
     if (tab.basecampListId) return 'basecamp';
+    if (tab.googleTaskListId) return 'google';
     return 'local';
 }
 
@@ -3444,7 +3531,7 @@ function getSyncedTabsWithFavourites() {
 
     Object.keys(tabs).forEach(tabId => {
         const tab = tabs[tabId];
-        const isSynced = tab.basecampListId || tab.remindersListId;
+        const isSynced = tab.basecampListId || tab.remindersListId || tab.googleTaskListId;
 
         if (isSynced) {
             const hasFavourites = tab.tasks.some(task => task.isFavourite);
@@ -4423,6 +4510,9 @@ function setupEventListeners() {
             // Get Reminders selection
             const remindersListId = remindersListSelect.value;
 
+            // Get Google Tasks selection
+            const googleTaskListId = googleListSelect ? googleListSelect.value : '';
+
             // If creating from Basecamp list and name is empty, use list name
             if (bcListId && (!tabName || tabName === '')) {
                 const selectedOption = bcListSelect.options[bcListSelect.selectedIndex];
@@ -4434,6 +4524,14 @@ function setupEventListeners() {
             // If creating from Reminders list and name is empty, use list name
             if (remindersListId && (!tabName || tabName === '')) {
                 const selectedOption = remindersListSelect.options[remindersListSelect.selectedIndex];
+                if (selectedOption) {
+                    tabName = selectedOption.text;
+                }
+            }
+
+            // If creating from Google Tasks list and name is empty, use list name
+            if (googleTaskListId && (!tabName || tabName === '')) {
+                const selectedOption = googleListSelect.options[googleListSelect.selectedIndex];
                 if (selectedOption) {
                     tabName = selectedOption.text;
                 }
@@ -4465,7 +4563,7 @@ function setupEventListeners() {
                 renameTab(renamingTabId, tabName);
             } else {
                 // Creating new tab
-                const newTabId = createNewTab(tabName, bcProjectId || null, bcListId || null, remindersListId || null);
+                const newTabId = createNewTab(tabName, bcProjectId || null, bcListId || null, remindersListId || null, null, googleTaskListId || null);
                 if (tabs[newTabId]) {
                     tabs[newTabId].color = selectedColor;
                     saveData(); // Save usually happens in createNewTab but we modified it
@@ -4747,6 +4845,26 @@ function setupEventListeners() {
         updateSyncButtonState();
     });
 
+    if (googleConnectBtn) {
+        googleConnectBtn.addEventListener('click', () => {
+            googleConnectBtn.textContent = 'Connecting...';
+            googleConnectBtn.disabled = true;
+            reddIpc.send('start-google-auth');
+        });
+    }
+
+    if (disconnectGoogleBtn) {
+        disconnectGoogleBtn.addEventListener('click', () => {
+            googleTasksConfig.accessToken = null;
+            googleTasksConfig.refreshToken = null;
+            googleTasksConfig.email = null;
+            googleTasksConfig.isConnected = false;
+            saveData();
+            updateGoogleTasksUI();
+            updateSyncButtonState();
+        });
+    }
+
     if (bcHelpLink) {
         bcHelpLink.addEventListener('click', (e) => {
             e.preventDefault();
@@ -4787,18 +4905,18 @@ function setupEventListeners() {
                 // Check for disconnected services
                 let hasDisconnectedBasecamp = false;
                 let hasDisconnectedReminders = false;
+                let hasDisconnectedGoogle = false;
 
                 syncedTabsWithFavs.forEach(tabId => {
                     const tab = tabs[tabId];
                     if (tab.basecampListId && !basecampConfig.isConnected) hasDisconnectedBasecamp = true;
                     if (tab.remindersListId && !remindersConfig.isConnected) hasDisconnectedReminders = true;
+                    if (tab.googleTaskListId && !googleTasksConfig.isConnected) hasDisconnectedGoogle = true;
                 });
 
-                if (hasDisconnectedBasecamp || hasDisconnectedReminders) {
+                if (hasDisconnectedBasecamp || hasDisconnectedReminders || hasDisconnectedGoogle) {
                     // Handle reconnection similar to single tab case
-                    const services = [];
-                    if (hasDisconnectedBasecamp) services.push('Basecamp');
-                    if (hasDisconnectedReminders) services.push('Apple Reminders');
+                    const services = syncServiceNames(hasDisconnectedBasecamp, hasDisconnectedReminders, hasDisconnectedGoogle);
 
                     const message = `Some favourited tasks are synced with ${services.join(' & ')}, but the connection is not active.\n\nYour changes are saved locally and will sync when you reconnect.`;
 
@@ -4825,6 +4943,8 @@ function setupEventListeners() {
                             }
                         } else if (hasDisconnectedBasecamp) {
                             reddIpc.send('start-basecamp-auth');
+                        } else if (hasDisconnectedGoogle) {
+                            reddIpc.send('start-google-auth');
                         }
                     }
                     return;
@@ -4841,6 +4961,9 @@ function setupEventListeners() {
                     }
                     if (tab.remindersListId && remindersConfig.isConnected) {
                         promises.push(syncRemindersList(tabId));
+                    }
+                    if (tab.googleTaskListId && googleTasksConfig.isConnected) {
+                        promises.push(syncGoogleList(tabId));
                     }
                 });
 
@@ -4859,12 +4982,11 @@ function setupEventListeners() {
             // Check if any required connections are missing
             const basecampDisconnected = tab.basecampListId && !basecampConfig.isConnected;
             const remindersDisconnected = tab.remindersListId && !remindersConfig.isConnected;
+            const googleDisconnected = tab.googleTaskListId && !googleTasksConfig.isConnected;
 
-            if (basecampDisconnected || remindersDisconnected) {
+            if (basecampDisconnected || remindersDisconnected || googleDisconnected) {
                 // Determine which service to reconnect to
-                const services = [];
-                if (basecampDisconnected) services.push('Basecamp');
-                if (remindersDisconnected) services.push('Apple Reminders');
+                const services = syncServiceNames(basecampDisconnected, remindersDisconnected, googleDisconnected);
 
                 const message = `This list is synced with ${services.join(' & ')}, but the connection is not active.\n\nYour changes are saved locally and will sync when you reconnect.`;
 
@@ -4895,6 +5017,9 @@ function setupEventListeners() {
                     } else if (basecampDisconnected) {
                         // Reconnect to Basecamp via OAuth
                         reddIpc.send('start-basecamp-auth');
+                    } else if (googleDisconnected) {
+                        // Reconnect to Google Tasks via OAuth
+                        reddIpc.send('start-google-auth');
                     }
                 }
                 return;
@@ -4909,6 +5034,9 @@ function setupEventListeners() {
             }
             if (tab.remindersListId && remindersConfig.isConnected) {
                 promises.push(syncRemindersList(currentTabId));
+            }
+            if (tab.googleTaskListId && googleTasksConfig.isConnected) {
+                promises.push(syncGoogleList(currentTabId));
             }
 
             Promise.all(promises).finally(() => {
@@ -5953,7 +6081,8 @@ function setupEventListeners() {
                 data: JSON.parse(JSON.stringify(completedTasksLocal)),
                 tabId: currentTabId,
                 basecampListId: currentTab.basecampListId,
-                remindersListId: currentTab.remindersListId
+                remindersListId: currentTab.remindersListId,
+                googleTaskListId: currentTab.googleTaskListId
             };
             showUndoToast(`${completedTasksLocal.length} completed task${completedTasksLocal.length === 1 ? '' : 's'} deleted`);
 
@@ -5963,6 +6092,13 @@ function setupEventListeners() {
                 completedTasks.forEach(task => {
                     deleteBasecampTodo(currentTabId, task.basecampId);
                 });
+            }
+
+            // If connected to Google Tasks, delete all completed tasks remotely
+            if (currentTab.googleTaskListId && googleTasksConfig.isConnected) {
+                currentTab.tasks
+                    .filter(task => task.completed && task.googleTaskId)
+                    .forEach(task => deleteGoogleTask(currentTab.googleTaskListId, task.googleTaskId));
             }
 
             // Keep only incomplete tasks
@@ -7236,6 +7372,21 @@ async function handleTaskSyncOnMove(task, sourceTab, targetTab) {
         task.remindersId = null; // Clear until new ID is set
     }
 
+    // For Google Tasks: the API can only move within a list, so recreate in the target
+    if (sourceTab.googleTaskListId && task.googleTaskId && googleTasksConfig.isConnected) {
+        deleteGoogleTask(sourceTab.googleTaskListId, task.googleTaskId);
+        const oldTask = { ...task };
+        task.googleTaskId = null; // Clear until the new ID is set
+        if (targetTab.googleTaskListId) {
+            createGoogleTask(targetTab.googleTaskListId, oldTask).then(newId => {
+                if (newId) {
+                    task.googleTaskId = newId;
+                    saveData();
+                }
+            });
+        }
+    }
+
     // For Basecamp: move the todo to the new list (preserves the todo, no duplicates)
     if (sourceTab.basecampListId && task.basecampId && targetTab.basecampListId) {
         if (!basecampConfig.isConnected || !basecampConfig.accessToken) {
@@ -7312,6 +7463,11 @@ function editTaskText(taskId, textElement) {
             // If connected to Reminders, sync text change
             if (tab.remindersListId && remindersConfig.isConnected && task.remindersId) {
                 updateRemindersTitle(task.remindersId, task.text);
+            }
+
+            // If connected to Google Tasks, sync text change
+            if (tab.googleTaskListId && googleTasksConfig.isConnected && task.googleTaskId) {
+                updateGoogleTaskTitle(tab.googleTaskListId, task.googleTaskId, task.text);
             }
 
             saveData();
@@ -7584,6 +7740,9 @@ function showTabNameModal() {
         remindersSelection.classList.add('hidden');
     }
 
+    // Handle Google Tasks visibility
+    populateGoogleListSelect();
+
     // Reset color picker and select next available color
     const colorSwatches = document.querySelectorAll('.color-swatch');
     colorSwatches.forEach(swatch => {
@@ -7645,6 +7804,7 @@ function showRenameModal(tabId) {
         tabNameInput.value = tab.name;
         basecampSelection.classList.remove('hidden'); // allow moving connections
         remindersSelection.classList.remove('hidden'); // allow moving connections
+        if (googleSelection) googleSelection.classList.add('hidden');
         tabNameModal.classList.remove('hidden');
 
         // Select logic for color
@@ -7740,6 +7900,7 @@ reddIpc.on('refresh-data', () => {
     renderTasks();
     updateBasecampUI();
     updateRemindersUI();
+    updateGoogleTasksUI();
 });
 
 reddIpc.on('focus-status-changed', (event, payload) => {
@@ -7907,6 +8068,32 @@ reddIpc.on('basecamp-auth-error', (event, errorMessage) => {
     }
 });
 
+function resetGoogleConnectButton() {
+    if (googleConnectBtn) {
+        googleConnectBtn.textContent = t('connect');
+        googleConnectBtn.disabled = false;
+    }
+}
+
+reddIpc.on('google-auth-success', (event, data) => {
+    googleTasksConfig.accessToken = data.access_token;
+    // A refresh token only comes back on consent; keep the existing one on re-auth.
+    googleTasksConfig.refreshToken = data.refresh_token || googleTasksConfig.refreshToken;
+    googleTasksConfig.email = data.email || null;
+    googleTasksConfig.isConnected = true;
+
+    saveData();
+    updateGoogleTasksUI();
+    updateSyncButtonState();
+    resetGoogleConnectButton();
+});
+
+reddIpc.on('google-auth-error', (event, errorMessage) => {
+    console.error('[Google OAuth] Authentication failed:', errorMessage);
+    alert('Google authentication failed: ' + errorMessage);
+    resetGoogleConnectButton();
+});
+
 // Data persistence
 /** Patch a single task in localStorage without rewriting the full tabs snapshot.
  *  Used by the macOS focus panel so periodic saves can't clobber main-window edits. */
@@ -7950,6 +8137,7 @@ function saveData() {
         taskCounter: taskCounter,
         basecampConfig: basecampConfig,
         remindersConfig: remindersConfig,
+        googleTasksConfig: googleTasksConfig,
         isDoneCollapsed: isDoneCollapsed,
         doneMaxHeight: doneMaxHeight,
         groups: groups,
@@ -8044,6 +8232,14 @@ function loadData() {
 
             // Load Reminders Config
             remindersConfig = data.remindersConfig || {
+                isConnected: false
+            };
+
+            // Load Google Tasks Config
+            googleTasksConfig = data.googleTasksConfig || {
+                accessToken: null,
+                refreshToken: null,
+                email: null,
                 isConnected: false
             };
 
@@ -8790,6 +8986,332 @@ async function fallbackMoveBasecampTodo(task, sourceTab, targetTab) {
 }
 
 // Reminders Logic
+
+// ---------------------------------------------------------------------------
+// Google Tasks
+// ---------------------------------------------------------------------------
+
+const GOOGLE_TASKS_API = 'https://tasks.googleapis.com/tasks/v1';
+
+function updateGoogleTasksUI() {
+    if (!googleConnectionStatus) return;
+
+    const connectRow = document.getElementById('google-connect-row');
+
+    if (googleTasksConfig.isConnected) {
+        googleConnectionStatus.classList.remove('hidden');
+        if (connectRow) connectRow.classList.add('hidden');
+        if (disconnectGoogleBtn) disconnectGoogleBtn.classList.remove('hidden');
+        if (googleAccountInfo) googleAccountInfo.textContent = googleTasksConfig.email || '';
+    } else {
+        googleConnectionStatus.classList.add('hidden');
+        if (connectRow) connectRow.classList.remove('hidden');
+        if (disconnectGoogleBtn) disconnectGoogleBtn.classList.add('hidden');
+        if (googleAccountInfo) googleAccountInfo.textContent = '';
+    }
+}
+
+/** Show and fill the Google Tasks list picker in the new-list modal, if connected. */
+function populateGoogleListSelect() {
+    if (!googleSelection || !googleListSelect) return;
+
+    if (!googleTasksConfig.isConnected) {
+        googleSelection.classList.add('hidden');
+        return;
+    }
+
+    googleSelection.classList.remove('hidden');
+    googleListSelect.innerHTML = '<option value="">Select a list...</option>';
+
+    fetchGoogleTaskLists().then(lists => {
+        if (lists.length === 0) {
+            googleListSelect.innerHTML = '<option value="">No lists found</option>';
+            return;
+        }
+        lists.forEach(list => {
+            const opt = document.createElement('option');
+            opt.value = list.id;
+            opt.textContent = list.title;
+            googleListSelect.appendChild(opt);
+        });
+    });
+}
+
+let googleRefreshPromise = null;
+
+async function refreshGoogleToken() {
+    if (googleRefreshPromise) return googleRefreshPromise;
+
+    googleRefreshPromise = (async () => {
+        if (!googleTasksConfig.refreshToken) {
+            console.warn('[Google Tasks] Cannot refresh: missing refresh token.');
+            return false;
+        }
+
+        try {
+            // Refreshed in Rust: the token request never passes through the webview.
+            const data = await tauriAPI.invoke('refresh_google_token', {
+                refreshToken: googleTasksConfig.refreshToken
+            });
+
+            if (data && data.access_token) {
+                googleTasksConfig.accessToken = data.access_token;
+                // Google only returns a new refresh token on re-consent.
+                if (data.refresh_token) googleTasksConfig.refreshToken = data.refresh_token;
+                saveData();
+                return true;
+            }
+        } catch (e) {
+            console.error('[Google Tasks] Error refreshing token:', e);
+        }
+        return false;
+    })();
+
+    try {
+        return await googleRefreshPromise;
+    } finally {
+        googleRefreshPromise = null;
+    }
+}
+
+// Tauri's HTTP client bypasses CORS; fall back to window.fetch elsewhere.
+function googleFetchFn() {
+    return (reddIsTauri && typeof tauriAPI !== 'undefined' && tauriAPI.fetch)
+        ? tauriAPI.fetch.bind(tauriAPI)
+        : fetch;
+}
+
+async function googleFetch(url, options = {}) {
+    const fetchFn = googleFetchFn();
+    const headers = { ...(options.headers || {}) };
+    headers['Authorization'] = `Bearer ${googleTasksConfig.accessToken}`;
+
+    let response = await fetchFn(url, { ...options, headers });
+
+    // Google access tokens last an hour, so refresh-on-401 is the common path.
+    if (response.status === 401 && await refreshGoogleToken()) {
+        headers['Authorization'] = `Bearer ${googleTasksConfig.accessToken}`;
+        response = await fetchFn(url, { ...options, headers });
+    }
+
+    return response;
+}
+
+/** Follow Google's nextPageToken pagination and return the concatenated `items`. */
+async function googleFetchAllItems(url) {
+    const items = [];
+    let pageToken = null;
+
+    do {
+        const pagedUrl = pageToken ? `${url}&pageToken=${encodeURIComponent(pageToken)}` : url;
+        const response = await googleFetch(pagedUrl);
+        if (!response.ok) {
+            throw new Error(`Google Tasks request failed (${response.status}): ${url}`);
+        }
+        const page = await response.json();
+        if (Array.isArray(page.items)) items.push(...page.items);
+        pageToken = page.nextPageToken || null;
+    } while (pageToken);
+
+    return items;
+}
+
+async function fetchGoogleTaskLists() {
+    if (!googleTasksConfig.isConnected) return [];
+    try {
+        return await googleFetchAllItems(`${GOOGLE_TASKS_API}/users/@me/lists?maxResults=100`);
+    } catch (e) {
+        console.error('[Google Tasks] Failed to fetch task lists:', e);
+        return [];
+    }
+}
+
+/** Completed and hidden tasks are excluded by default, so ask for them explicitly. */
+async function fetchGoogleTasks(listId) {
+    const url = `${GOOGLE_TASKS_API}/lists/${encodeURIComponent(listId)}/tasks`
+        + '?showCompleted=true&showHidden=true&maxResults=100';
+    return googleFetchAllItems(url);
+}
+
+function googleTaskUrl(listId, taskId) {
+    return `${GOOGLE_TASKS_API}/lists/${encodeURIComponent(listId)}/tasks/${encodeURIComponent(taskId)}`;
+}
+
+async function patchGoogleTask(listId, taskId, body) {
+    try {
+        const response = await googleFetch(googleTaskUrl(listId, taskId), {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!response.ok) {
+            console.error(`[Google Tasks] Update failed (${response.status}) for task ${taskId}`);
+        }
+    } catch (e) {
+        console.error('[Google Tasks] Update error:', e);
+    }
+}
+
+async function updateGoogleTaskStatus(listId, googleId, completed) {
+    // Clearing `completed` alongside the status is what un-completes a task.
+    return patchGoogleTask(listId, googleId, completed
+        ? { status: 'completed', completed: new Date().toISOString() }
+        : { status: 'needsAction', completed: null });
+}
+
+async function updateGoogleTaskTitle(listId, googleId, title) {
+    return patchGoogleTask(listId, googleId, { title });
+}
+
+async function updateGoogleTaskNotes(listId, googleId, notes) {
+    // Google Tasks notes are plain text, same as Apple Reminders.
+    return patchGoogleTask(listId, googleId, { notes: htmlToPlainText(notes || '') });
+}
+
+async function createGoogleTask(listId, task) {
+    try {
+        const response = await googleFetch(`${GOOGLE_TASKS_API}/lists/${encodeURIComponent(listId)}/tasks`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: task.text,
+                notes: htmlToPlainText(task.notes || ''),
+                status: task.completed ? 'completed' : 'needsAction'
+            })
+        });
+        if (!response.ok) {
+            console.error(`[Google Tasks] Create failed (${response.status})`);
+            return null;
+        }
+        const created = await response.json();
+        return created.id || null;
+    } catch (e) {
+        console.error('[Google Tasks] Create error:', e);
+        return null;
+    }
+}
+
+async function deleteGoogleTask(listId, googleId) {
+    try {
+        await googleFetch(googleTaskUrl(listId, googleId), { method: 'DELETE' });
+    } catch (e) {
+        console.error('[Google Tasks] Delete error:', e);
+    }
+}
+
+/** Last-writer-wins. Falls back to `preferRemote` when a timestamp is missing. */
+function remoteWins(localTime, remoteTime, preferRemote) {
+    if (localTime > 0 && remoteTime > 0) return remoteTime > localTime;
+    if (remoteTime > 0) return true;
+    if (localTime > 0) return false;
+    return !!preferRemote;
+}
+
+function toTime(value) {
+    return value ? new Date(value).getTime() : 0;
+}
+
+async function syncGoogleList(tabId) {
+    const tab = tabs[tabId];
+    if (!tab || !tab.googleTaskListId || !googleTasksConfig.isConnected) return;
+
+    const listId = tab.googleTaskListId;
+
+    try {
+        const remoteTasks = await fetchGoogleTasks(listId);
+
+        let changes = false;
+        const remoteIds = new Set();
+
+        remoteTasks.forEach(remote => {
+            // Google keeps deleted tasks in the response until they are purged.
+            if (remote.deleted) return;
+
+            remoteIds.add(remote.id);
+            const localTask = tab.tasks.find(t => t.googleTaskId === remote.id);
+            const remoteCompleted = remote.status === 'completed';
+            const remoteTime = toTime(remote.updated);
+
+            if (!localTask) {
+                tab.tasks.push({
+                    id: `task_${++taskCounter}`,
+                    text: remote.title || '',
+                    completed: remoteCompleted,
+                    completedAt: remote.completed || null,
+                    statusChangedAt: remote.updated || null,
+                    createdAt: remote.updated || new Date().toISOString(),
+                    expectedDuration: null,
+                    actualDuration: null,
+                    basecampId: null,
+                    remindersId: null,
+                    googleTaskId: remote.id,
+                    notes: remote.notes || null,
+                    notesChangedAt: remote.notes ? (remote.updated || null) : null
+                });
+                changes = true;
+                return;
+            }
+
+            if (localTask.completed !== remoteCompleted) {
+                const localTime = toTime(localTask.statusChangedAt || localTask.completedAt);
+                if (remoteWins(localTime, remoteTime, remoteCompleted && !localTask.completed)) {
+                    localTask.completed = remoteCompleted;
+                    localTask.completedAt = remote.completed || null;
+                    localTask.statusChangedAt = remote.updated || null;
+                    changes = true;
+                } else {
+                    updateGoogleTaskStatus(listId, remote.id, localTask.completed);
+                }
+            }
+
+            const remoteTitle = remote.title || '';
+            if (localTask.text !== remoteTitle && remoteTitle) {
+                localTask.text = remoteTitle;
+                changes = true;
+            }
+
+            // Local notes may be Quill HTML; compare on plain text so pushing our
+            // notes to Google and reading them back doesn't look like a conflict.
+            const localNotes = localTask.notes || '';
+            const localPlain = htmlToPlainText(localNotes);
+            const remotePlain = (remote.notes || '').trim();
+
+            if (localPlain !== remotePlain) {
+                const localNotesTime = toTime(localTask.notesChangedAt);
+                if (remoteWins(localNotesTime, remoteTime, remotePlain && !localPlain)) {
+                    localTask.notes = remote.notes || null;
+                    localTask.notesChangedAt = remote.updated || null;
+                    changes = true;
+                } else if (localNotes) {
+                    updateGoogleTaskNotes(listId, remote.id, localNotes);
+                }
+            }
+        });
+
+        // Drop local tasks whose Google counterpart is gone.
+        const initialCount = tab.tasks.length;
+        tab.tasks = tab.tasks.filter(t => !t.googleTaskId || remoteIds.has(t.googleTaskId));
+        if (tab.tasks.length !== initialCount) changes = true;
+
+        // Push tasks created locally while offline.
+        for (const task of tab.tasks) {
+            if (!task.googleTaskId) {
+                const newId = await createGoogleTask(listId, task);
+                if (newId) {
+                    task.googleTaskId = newId;
+                    changes = true;
+                }
+            }
+        }
+
+        if (changes) {
+            renderTasks();
+            saveData();
+        }
+    } catch (e) {
+        console.error('[Google Tasks] Sync error:', e);
+    }
+}
 
 function updateRemindersUI() {
     // Apple Reminders is macOS-only; the section is hidden at boot on other platforms.
