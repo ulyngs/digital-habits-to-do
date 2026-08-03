@@ -44,7 +44,7 @@ shipping empty notes.
 4. Base64-encode it for the GitHub secret:
    `base64 -i AuthKey_XXXXXXXXXX.p8 | pbcopy`
 
-You can reuse the same API key already used for ReDD Blocker iOS if it has
+You can reuse the same API key already used for Digital Habits: Blocker iOS if it has
 access to the Digital Habits: To-Do app record (`com.redd.do`).
 
 ## One-time Mac App Store signing secrets
@@ -63,7 +63,7 @@ CI needs the same materials as a local `npm run build:mas` (see
    base64 -i ReDD_To_Do.provisionprofile | pbcopy
    ```
 
-## GitHub Actions secrets (`ulyngs/redd-todo`)
+## GitHub Actions secrets (`ulyngs/digital-habits-to-do`)
 
 | Secret | Source |
 | --- | --- |

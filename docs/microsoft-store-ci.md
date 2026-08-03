@@ -29,7 +29,7 @@ Mac App Store uses the same script with `--platform macos` — see
 App update APIs are supported for **free** Store products. Confirm Digital Habits: To-Do
 is free to download before relying on this path.
 
-You can **reuse the same Entra app** already set up for ReDD Blocker (Manager
+You can **reuse the same Entra app** already set up for Digital Habits: Blocker (Manager
 role on the Partner Center account). Only `MS_STORE_PRODUCT_ID` must be
 To-Do’s Store ID.
 
@@ -42,7 +42,7 @@ To-Do’s Store ID.
    (digits only) — not the Publisher GUID, not `CN=…`, not the Store `9…` ID.
 4. Copy Digital Habits: To-Do’s **Store ID** (`9…` from the product identity / Store URL).
 
-## GitHub Actions secrets (`ulyngs/redd-todo`)
+## GitHub Actions secrets (`ulyngs/digital-habits-to-do`)
 
 | Secret | Source |
 | --- | --- |

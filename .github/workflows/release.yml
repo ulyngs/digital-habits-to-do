@@ -42,7 +42,7 @@
 #
 # Reuse the same Entra app as Digital Habits: Blocker if it already has Manager on the
 # Partner Center account — only MS_STORE_PRODUCT_ID must be To-Do’s Store ID.
-# Repo: ulyngs/redd-todo (git remote may still say redd-task; that redirects).
+# Repo: ulyngs/digital-habits-to-do (git remote may still say redd-task; that redirects).
 
 name: Release build
 
