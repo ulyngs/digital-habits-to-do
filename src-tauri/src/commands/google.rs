@@ -21,7 +21,8 @@ const GOOGLE_SCOPE: &str =
 /// Google OAuth client_id for the "Desktop app" client. Public by design — PKCE
 /// takes the place of a client secret. GOOGLE_CLIENT_ID overrides it in dev;
 /// release builds have no project cwd and ship no .env.
-const GOOGLE_CLIENT_ID: &str = "";
+const GOOGLE_CLIENT_ID: &str =
+    "797401944225-p8bhb5prd4qn1ns42uhlnevr9bge77l5.apps.googleusercontent.com";
 
 fn get_google_client_id() -> String {
     let _ = dotenvy::dotenv();
