@@ -8,14 +8,17 @@
 //! Google still requires the Desktop client's `client_secret` on the token
 //! endpoint even with PKCE. Google documents that value as non-confidential for
 //! installed apps (it is baked into the binary the same way as `client_id`).
+//!
+//! Credentials are compile-time only (`option_env!`), never committed:
+//! - GitHub Actions: `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` secrets on the
+//!   build step
+//! - Local release / `npm run dev`: project-root `.env` (gitignored), loaded by
+//!   `build.rs` into rustc
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine as _;
 use sha2::{Digest, Sha256};
-use std::env;
-use std::fs;
 use std::net::TcpListener;
-use std::path::PathBuf;
 use std::thread;
 use tauri::{command, AppHandle, Emitter, Manager};
 
@@ -24,76 +27,14 @@ const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 const GOOGLE_SCOPE: &str =
     "https://www.googleapis.com/auth/tasks openid https://www.googleapis.com/auth/userinfo.email";
 
-/// Google OAuth client_id for the "Desktop app" client. Public by design.
-/// `GOOGLE_CLIENT_ID` overrides it in dev; release builds have no project cwd
-/// and ship no .env.
-const GOOGLE_CLIENT_ID: &str =
-    "797401944225-p8bhb5prd4qn1ns42uhlnevr9bge77l5.apps.googleusercontent.com";
-
-/// Desktop client secret from the Cloud Console. Google treats this as
-/// non-confidential for installed apps. `GOOGLE_CLIENT_SECRET` overrides it in
-/// dev; leave empty here until the release that ships the integration.
-const GOOGLE_CLIENT_SECRET: &str = "";
-
-fn google_env_candidates() -> Vec<PathBuf> {
-    let mut paths = Vec::new();
-    // Project-root .env (next to package.json). Cargo/Tauri cwd is usually src-tauri.
-    paths.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join(".env"));
-    if let Ok(cwd) = env::current_dir() {
-        paths.push(cwd.join(".env"));
-        if let Some(parent) = cwd.parent() {
-            paths.push(parent.join(".env"));
-        }
-    }
-    paths
-}
-
-/// Read a single `GOOGLE_*` key from .env without using dotenvy.
-///
-/// The project `.env` has unquoted Apple identity values with spaces, which make
-/// `dotenvy` abort before it reaches the Google lines.
-fn google_env_from_file(key: &str) -> Option<String> {
-    for path in google_env_candidates() {
-        let Ok(contents) = fs::read_to_string(&path) else {
-            continue;
-        };
-        for line in contents.lines() {
-            let line = line.trim();
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-            let Some((k, value)) = line.split_once('=') else {
-                continue;
-            };
-            if k != key {
-                continue;
-            }
-            let value = value
-                .trim()
-                .trim_matches('"')
-                .trim_matches('\'')
-                .to_string();
-            if !value.is_empty() {
-                return Some(value);
-            }
-        }
-    }
-    None
-}
-
+/// Set at compile time via CI secrets or `build.rs` reading `.env`.
 fn get_google_client_id() -> String {
-    match env::var("GOOGLE_CLIENT_ID") {
-        Ok(id) if !id.is_empty() => id,
-        _ => google_env_from_file("GOOGLE_CLIENT_ID").unwrap_or_else(|| GOOGLE_CLIENT_ID.to_string()),
-    }
+    option_env!("GOOGLE_CLIENT_ID").unwrap_or("").to_string()
 }
 
+/// Set at compile time via CI secrets or `build.rs` reading `.env`.
 fn get_google_client_secret() -> String {
-    match env::var("GOOGLE_CLIENT_SECRET") {
-        Ok(secret) if !secret.is_empty() => secret,
-        _ => google_env_from_file("GOOGLE_CLIENT_SECRET")
-            .unwrap_or_else(|| GOOGLE_CLIENT_SECRET.to_string()),
-    }
+    option_env!("GOOGLE_CLIENT_SECRET").unwrap_or("").to_string()
 }
 
 /// URL-safe random token, used for both the PKCE verifier and the state nonce.
