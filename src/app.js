@@ -357,7 +357,7 @@ const translations = {
         rebrandOnboardingBody1Html:
             'We’ve renamed the app because our team — previously the <strong>Reduce Digital Distraction Project</strong> — is now known as <strong>Centre for Digital Habits</strong> (<a href="https://digitalhabits.org" target="_blank" rel="noopener noreferrer" class="legal-onboarding-link" data-external-url="https://digitalhabits.org">digitalhabits.org</a>).',
         rebrandOnboardingBody2Html:
-            'On your computer, the app is now called <strong>“Digital Habits To-Do”</strong>.',
+            'On your computer, the app is now called <strong>“Digital Habits: To-Do”</strong>.',
         rebrandOnboardingContinueBtn: 'Continue',
     },
     da: {
@@ -446,7 +446,7 @@ const translations = {
         rebrandOnboardingBody1Html:
             'Vi har givet appen nyt navn, fordi vores team — tidligere <strong>Reduce Digital Distraction Project</strong> — nu hedder <strong>Centre for Digital Habits</strong> (<a href="https://digitalhabits.org" target="_blank" rel="noopener noreferrer" class="legal-onboarding-link" data-external-url="https://digitalhabits.org">digitalhabits.org</a>).',
         rebrandOnboardingBody2Html:
-            'På din computer hedder appen nu <strong>”Digital Habits To-Do”</strong>.',
+            'På din computer hedder appen nu <strong>”Digital Habits: To-Do”</strong>.',
         rebrandOnboardingContinueBtn: 'Fortsæt',
     }
 };
