@@ -277,7 +277,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             // App commands
             get_app_version,
-            is_debug_build,
             open_external_url,
             // Reminders commands
             fetch_reminders_lists,

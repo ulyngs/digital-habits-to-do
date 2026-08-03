@@ -263,7 +263,6 @@ let eulaRevisionPendingAccept = null;
 let eulaListenersAttached = false;
 let windowControlsInitialized = false;
 let digitalHabitsRebrandNoticeShown = false;
-let forceShowRebrandNoticeThisSession = false;
 
 // Translations
 const translations = {
@@ -910,21 +909,9 @@ function resetDevOnlyEulaAcceptance() {
 // Digital Habits: To-Do and the organisation behind it is now the Centre for
 // Digital Habits. Shown on macOS and Windows before any other screen. Fresh
 // installs never see it (the flag is persisted silently on first run, see
-// startMainWindowWithEulaGate). Always shown on `npm run dev` via
-// resetDevOnlyRebrandNoticeShown.
+// startMainWindowWithEulaGate).
 //
 // Persistence: `digitalHabitsRebrandNoticeShown` in localStorage app data.
-async function resetDevOnlyRebrandNoticeShown() {
-    // `isLocalDevRun` cannot detect `tauri dev` here: there is no dev server,
-    // so the webview always serves from the tauri:// protocol. Ask the backend.
-    if (!reddIsTauri || typeof tauriAPI === 'undefined' || !tauriAPI.isDebugBuild) return;
-    try {
-        forceShowRebrandNoticeThisSession = await tauriAPI.isDebugBuild() === true;
-    } catch (err) {
-        console.warn('[rebrand-onboarding] failed to detect debug build:', err);
-    }
-}
-
 function hasLegacyReddDoData() {
     return taskCounter > 0
         || Object.keys(tabs).length > 0
@@ -937,7 +924,6 @@ function hasLegacyReddDoData() {
 }
 
 function shouldShowRebrandOnboarding() {
-    if (forceShowRebrandNoticeThisSession) return true;
     return hasLegacyReddDoData() && !digitalHabitsRebrandNoticeShown;
 }
 
@@ -970,7 +956,6 @@ function showRebrandOnboarding() {
 }
 
 function persistRebrandOnboardingShown() {
-    forceShowRebrandNoticeThisSession = false;
     digitalHabitsRebrandNoticeShown = true;
     saveData();
 }
@@ -1220,10 +1205,7 @@ function initApp() {
         return;
     }
 
-    void (async () => {
-        await resetDevOnlyRebrandNoticeShown();
-        await startMainWindowWithEulaGate();
-    })();
+    void startMainWindowWithEulaGate();
 }
 
 // Group Management
