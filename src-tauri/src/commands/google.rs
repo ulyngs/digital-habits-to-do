@@ -1,15 +1,21 @@
 //! Google Tasks OAuth.
 //!
 //! Follows RFC 8252 (OAuth 2.0 for Native Apps): the authorization code comes
-//! straight back to a loopback listener and is exchanged here using a PKCE
-//! verifier. There is no client secret, no server hop, and no token ever
-//! travels through a public URL — unlike the Basecamp flow in `oauth.rs`.
+//! straight back to a loopback listener and is exchanged here using PKCE.
+//! No server hop, and no token ever travels through a public URL — unlike the
+//! Basecamp flow in `oauth.rs`.
+//!
+//! Google still requires the Desktop client's `client_secret` on the token
+//! endpoint even with PKCE. Google documents that value as non-confidential for
+//! installed apps (it is baked into the binary the same way as `client_id`).
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine as _;
 use sha2::{Digest, Sha256};
 use std::env;
+use std::fs;
 use std::net::TcpListener;
+use std::path::PathBuf;
 use std::thread;
 use tauri::{command, AppHandle, Emitter, Manager};
 
@@ -18,17 +24,75 @@ const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 const GOOGLE_SCOPE: &str =
     "https://www.googleapis.com/auth/tasks openid https://www.googleapis.com/auth/userinfo.email";
 
-/// Google OAuth client_id for the "Desktop app" client. Public by design — PKCE
-/// takes the place of a client secret. GOOGLE_CLIENT_ID overrides it in dev;
-/// release builds have no project cwd and ship no .env.
+/// Google OAuth client_id for the "Desktop app" client. Public by design.
+/// `GOOGLE_CLIENT_ID` overrides it in dev; release builds have no project cwd
+/// and ship no .env.
 const GOOGLE_CLIENT_ID: &str =
     "797401944225-p8bhb5prd4qn1ns42uhlnevr9bge77l5.apps.googleusercontent.com";
 
+/// Desktop client secret from the Cloud Console. Google treats this as
+/// non-confidential for installed apps. `GOOGLE_CLIENT_SECRET` overrides it in
+/// dev; leave empty here until the release that ships the integration.
+const GOOGLE_CLIENT_SECRET: &str = "";
+
+fn google_env_candidates() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    // Project-root .env (next to package.json). Cargo/Tauri cwd is usually src-tauri.
+    paths.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join(".env"));
+    if let Ok(cwd) = env::current_dir() {
+        paths.push(cwd.join(".env"));
+        if let Some(parent) = cwd.parent() {
+            paths.push(parent.join(".env"));
+        }
+    }
+    paths
+}
+
+/// Read a single `GOOGLE_*` key from .env without using dotenvy.
+///
+/// The project `.env` has unquoted Apple identity values with spaces, which make
+/// `dotenvy` abort before it reaches the Google lines.
+fn google_env_from_file(key: &str) -> Option<String> {
+    for path in google_env_candidates() {
+        let Ok(contents) = fs::read_to_string(&path) else {
+            continue;
+        };
+        for line in contents.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            let Some((k, value)) = line.split_once('=') else {
+                continue;
+            };
+            if k != key {
+                continue;
+            }
+            let value = value
+                .trim()
+                .trim_matches('"')
+                .trim_matches('\'')
+                .to_string();
+            if !value.is_empty() {
+                return Some(value);
+            }
+        }
+    }
+    None
+}
+
 fn get_google_client_id() -> String {
-    let _ = dotenvy::dotenv();
     match env::var("GOOGLE_CLIENT_ID") {
         Ok(id) if !id.is_empty() => id,
-        _ => GOOGLE_CLIENT_ID.to_string(),
+        _ => google_env_from_file("GOOGLE_CLIENT_ID").unwrap_or_else(|| GOOGLE_CLIENT_ID.to_string()),
+    }
+}
+
+fn get_google_client_secret() -> String {
+    match env::var("GOOGLE_CLIENT_SECRET") {
+        Ok(secret) if !secret.is_empty() => secret,
+        _ => google_env_from_file("GOOGLE_CLIENT_SECRET")
+            .unwrap_or_else(|| GOOGLE_CLIENT_SECRET.to_string()),
     }
 }
 
@@ -45,6 +109,13 @@ pub async fn start_google_auth(app: AppHandle) -> Result<(), String> {
     let client_id = get_google_client_id();
     if client_id.is_empty() {
         let error_msg = "Google client ID is not configured in this build";
+        emit_google_error(&app, error_msg);
+        return Err(error_msg.to_string());
+    }
+
+    let client_secret = get_google_client_secret();
+    if client_secret.is_empty() {
+        let error_msg = "Google client secret is not configured in this build";
         emit_google_error(&app, error_msg);
         return Err(error_msg.to_string());
     }
@@ -82,7 +153,15 @@ pub async fn start_google_auth(app: AppHandle) -> Result<(), String> {
 
     let handle = app.clone();
     thread::spawn(move || {
-        receive_google_callback(handle, server, client_id, verifier, state, redirect_uri);
+        receive_google_callback(
+            handle,
+            server,
+            client_id,
+            client_secret,
+            verifier,
+            state,
+            redirect_uri,
+        );
     });
 
     // Uses NSWorkspace on macOS: spawning /usr/bin/open fails inside the App
@@ -101,6 +180,7 @@ fn receive_google_callback(
     app: AppHandle,
     server: tiny_http::Server,
     client_id: String,
+    client_secret: String,
     verifier: String,
     expected_state: String,
     redirect_uri: String,
@@ -132,6 +212,7 @@ fn receive_google_callback(
     match runtime.block_on(exchange_google_code(
         &code,
         &client_id,
+        &client_secret,
         &verifier,
         &redirect_uri,
     )) {
@@ -177,6 +258,7 @@ fn authorization_code(parsed: &url::Url, expected_state: &str) -> Result<String,
 async fn exchange_google_code(
     code: &str,
     client_id: &str,
+    client_secret: &str,
     verifier: &str,
     redirect_uri: &str,
 ) -> Result<serde_json::Value, String> {
@@ -186,6 +268,7 @@ async fn exchange_google_code(
             ("grant_type", "authorization_code"),
             ("code", code),
             ("client_id", client_id),
+            ("client_secret", client_secret),
             ("code_verifier", verifier),
             ("redirect_uri", redirect_uri),
         ])
@@ -196,12 +279,17 @@ async fn exchange_google_code(
     google_token_payload(response).await
 }
 
-/// Refresh an expired Google access token. Public client, so no secret is sent.
+/// Refresh an expired Google access token.
 #[command]
 pub async fn refresh_google_token(refresh_token: String) -> Result<serde_json::Value, String> {
     let client_id = get_google_client_id();
     if client_id.is_empty() {
         return Err("Google client ID is not configured in this build".to_string());
+    }
+
+    let client_secret = get_google_client_secret();
+    if client_secret.is_empty() {
+        return Err("Google client secret is not configured in this build".to_string());
     }
 
     let response = reqwest::Client::new()
@@ -210,6 +298,7 @@ pub async fn refresh_google_token(refresh_token: String) -> Result<serde_json::V
             ("grant_type", "refresh_token"),
             ("refresh_token", refresh_token.as_str()),
             ("client_id", client_id.as_str()),
+            ("client_secret", client_secret.as_str()),
         ])
         .send()
         .await
