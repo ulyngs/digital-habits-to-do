@@ -2099,21 +2099,11 @@ function showMoveTaskModal(taskId) {
         const targetTabId = select.value;
         if (!targetTabId) return;
 
-        // Remove from source tab
-        const sourceTab = tabs[sourceTabId];
-        const taskIndex = sourceTab.tasks.findIndex(t => t.id === taskId);
-        if (taskIndex !== -1) {
-            sourceTab.tasks.splice(taskIndex, 1);
-        }
-
-        // Add to target tab
-        const targetTab = tabs[targetTabId];
-        targetTab.tasks.push(task);
-
+        const targetName = tabs[targetTabId]?.name || '';
         modal.remove();
-        renderTasks();
-        saveData();
-        showUndoToast(`Task moved to "${targetTab.name}"`);
+        // Same path as drag-and-drop: updates Basecamp / Reminders / Google Tasks.
+        moveTaskToTab(taskId, sourceTabId, targetTabId, false);
+        showUndoToast(`Task moved to "${targetName}"`);
     });
 
     // Close on overlay click
@@ -7372,18 +7362,18 @@ async function handleTaskSyncOnMove(task, sourceTab, targetTab) {
         task.remindersId = null; // Clear until new ID is set
     }
 
-    // For Google Tasks: the API can only move within a list, so recreate in the target
+    // For Google Tasks: the API can only move within a list, so delete + recreate in the target
     if (sourceTab.googleTaskListId && task.googleTaskId && googleTasksConfig.isConnected) {
-        deleteGoogleTask(sourceTab.googleTaskListId, task.googleTaskId);
+        const oldGoogleId = task.googleTaskId;
         const oldTask = { ...task };
         task.googleTaskId = null; // Clear until the new ID is set
+        await deleteGoogleTask(sourceTab.googleTaskListId, oldGoogleId);
         if (targetTab.googleTaskListId) {
-            createGoogleTask(targetTab.googleTaskListId, oldTask).then(newId => {
-                if (newId) {
-                    task.googleTaskId = newId;
-                    saveData();
-                }
-            });
+            const newId = await createGoogleTask(targetTab.googleTaskListId, oldTask);
+            if (newId) {
+                task.googleTaskId = newId;
+                saveData();
+            }
         }
     }
 
@@ -9193,7 +9183,11 @@ async function createGoogleTask(listId, task) {
 
 async function deleteGoogleTask(listId, googleId) {
     try {
-        await googleFetch(googleTaskUrl(listId, googleId), { method: 'DELETE' });
+        const response = await googleFetch(googleTaskUrl(listId, googleId), { method: 'DELETE' });
+        // 204 No Content is success; 404 means it was already gone.
+        if (!response.ok && response.status !== 404) {
+            console.error(`[Google Tasks] Delete failed (${response.status}) for task ${googleId}`);
+        }
     } catch (e) {
         console.error('[Google Tasks] Delete error:', e);
     }
