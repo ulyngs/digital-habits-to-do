@@ -7,7 +7,7 @@ use commands::reminders::*;
 use commands::window::*;
 use tauri::{Emitter, Manager};
 
-/// Forward macOS menu zoom actions to the frontend (same pattern as redd-block).
+/// Forward macOS menu zoom actions to the frontend (same pattern as digital-habits-blocker).
 #[cfg(target_os = "macos")]
 fn emit_menu_zoom(app: &tauri::AppHandle, event: &str) {
     if let Some(window) = app.get_webview_window("main") {
@@ -250,7 +250,7 @@ pub fn run() {
                     "zoom_out" => emit_menu_zoom(app, "menu-zoom-out"),
                     "zoom_reset" => emit_menu_zoom(app, "menu-zoom-reset"),
                     "help_report_issue" => {
-                        open_url(app, "https://github.com/ulyngs/redd-todo/issues")
+                        open_url(app, "https://github.com/ulyngs/digital-habits-to-do/issues")
                     }
                     "help_contact_us" => open_url(app, "mailto:team@digitalhabits.org"),
                     "help_about_redd" => open_url(app, "https://digitalhabits.org"),

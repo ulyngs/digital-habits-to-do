@@ -9,7 +9,7 @@ Get back to that thing you meant to do. Digital Habits: To-Do keeps you on track
 - Data backup and restore: export and import your data for backup or moving to another machine
 
 Digital Habits: To-Do is open-source and collects zero user data.
-Source code: https://github.com/ulyngs/redd-todo
+Source code: https://github.com/ulyngs/digital-habits-to-do
 
 Cheers,
 

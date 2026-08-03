@@ -328,7 +328,7 @@ const translations = {
         yourVersion: 'Your version',
         close: 'Close',
         settingsFeedbackFooterHtml:
-            'Feedback or suggestions? <a href="https://github.com/ulyngs/redd-todo/issues" target="_blank" rel="noopener noreferrer">Open an issue on GitHub</a> or email <a href="mailto:team@digitalhabits.org">team@digitalhabits.org</a>.',
+            'Feedback or suggestions? <a href="https://github.com/ulyngs/digital-habits-to-do/issues" target="_blank" rel="noopener noreferrer">Open an issue on GitHub</a> or email <a href="mailto:team@digitalhabits.org">team@digitalhabits.org</a>.',
         // Tooltips
         settingsTooltip: 'Settings',
         moreInfo: 'More info',
@@ -413,7 +413,7 @@ const translations = {
         yourVersion: 'Din version',
         close: 'Luk',
         settingsFeedbackFooterHtml:
-            'Feedback eller forslag? <a href="https://github.com/ulyngs/redd-todo/issues" target="_blank" rel="noopener noreferrer">Opret et issue på GitHub</a> eller skriv til <a href="mailto:team@digitalhabits.org">team@digitalhabits.org</a>.',
+            'Feedback eller forslag? <a href="https://github.com/ulyngs/digital-habits-to-do/issues" target="_blank" rel="noopener noreferrer">Opret et issue på GitHub</a> eller skriv til <a href="mailto:team@digitalhabits.org">team@digitalhabits.org</a>.',
         // Tooltips
         settingsTooltip: 'Indstillinger',
         moreInfo: 'Mere info',

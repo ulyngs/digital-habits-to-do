@@ -39,7 +39,7 @@ const INTRO = `Hi folks,
 
 This update comes with some helpful improvements!`;
 
-const SIGNOFF = `Please keep suggesting improvements to the app - you can do so at https://github.com/ulyngs/redd-todo/issues
+const SIGNOFF = `Please keep suggesting improvements to the app - you can do so at https://github.com/ulyngs/digital-habits-to-do/issues
 
 We hope you're enjoying Digital Habits: To-Do!
 
