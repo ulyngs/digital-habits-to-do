@@ -657,249 +657,302 @@ fn run_connector(app: &tauri::AppHandle, args: &[&str]) -> Result<String, String
     String::from_utf8(output.stdout).map_err(|e| format!("Invalid UTF-8 output: {}", e))
 }
 
+#[cfg(target_os = "macos")]
+async fn run_reminders_blocking<T, F>(work: F) -> Result<T, String>
+where
+    T: Send + 'static,
+    F: FnOnce() -> Result<T, String> + Send + 'static,
+{
+    tokio::task::spawn_blocking(work)
+        .await
+        .map_err(|e| format!("Reminders background task failed: {e}"))?
+}
+
 /// Fetch all Reminders lists
 #[command]
-pub fn fetch_reminders_lists(app: tauri::AppHandle) -> Result<Vec<RemindersList>, String> {
+pub async fn fetch_reminders_lists(app: tauri::AppHandle) -> Result<Vec<RemindersList>, String> {
     #[cfg(not(target_os = "macos"))]
-    return Ok(vec![]);
+    {
+        let _ = app;
+        return Ok(vec![]);
+    }
 
     #[cfg(target_os = "macos")]
     {
-        #[cfg(not(debug_assertions))]
-        {
-            let _ = app;
-            return native_eventkit::fetch_lists();
-        }
-
-        #[cfg(debug_assertions)]
-        {
-            let output = run_connector(&app, &["lists"])?;
-            match parse_array_or_error(&output, "reminders lists") {
-                Ok(v) => Ok(v),
-                Err(e) if should_use_jxa_fallback(&e) => {
-                    let jxa_output = jxa_lists_output()?;
-                    parse_array_or_error(&jxa_output, "reminders lists (JXA)")
-                }
-                Err(e) => Err(e),
+        run_reminders_blocking(move || {
+            #[cfg(not(debug_assertions))]
+            {
+                let _ = app;
+                native_eventkit::fetch_lists()
             }
-        }
+
+            #[cfg(debug_assertions)]
+            {
+                let output = run_connector(&app, &["lists"])?;
+                match parse_array_or_error(&output, "reminders lists") {
+                    Ok(v) => Ok(v),
+                    Err(e) if should_use_jxa_fallback(&e) => {
+                        let jxa_output = jxa_lists_output()?;
+                        parse_array_or_error(&jxa_output, "reminders lists (JXA)")
+                    }
+                    Err(e) => Err(e),
+                }
+            }
+        })
+        .await
     }
 }
 
 /// Fetch tasks from a specific Reminders list
 #[command]
-pub fn fetch_reminders_tasks(
+pub async fn fetch_reminders_tasks(
     app: tauri::AppHandle,
     list_id: String,
 ) -> Result<Vec<RemindersTask>, String> {
     #[cfg(not(target_os = "macos"))]
-    return Ok(vec![]);
+    {
+        let _ = (app, list_id);
+        return Ok(vec![]);
+    }
 
     #[cfg(target_os = "macos")]
     {
-        #[cfg(not(debug_assertions))]
-        {
-            let _ = app;
-            return native_eventkit::fetch_tasks(list_id);
-        }
-
-        #[cfg(debug_assertions)]
-        {
-            let output = run_connector(&app, &["tasks", &list_id])?;
-            match parse_array_or_error(&output, "reminders tasks") {
-                Ok(v) => Ok(v),
-                Err(e) if should_use_jxa_fallback(&e) => {
-                    let jxa_output = jxa_tasks_output(&list_id)?;
-                    parse_array_or_error(&jxa_output, "reminders tasks (JXA)")
-                }
-                Err(e) => Err(e),
+        run_reminders_blocking(move || {
+            #[cfg(not(debug_assertions))]
+            {
+                let _ = app;
+                native_eventkit::fetch_tasks(list_id)
             }
-        }
+
+            #[cfg(debug_assertions)]
+            {
+                let output = run_connector(&app, &["tasks", &list_id])?;
+                match parse_array_or_error(&output, "reminders tasks") {
+                    Ok(v) => Ok(v),
+                    Err(e) if should_use_jxa_fallback(&e) => {
+                        let jxa_output = jxa_tasks_output(&list_id)?;
+                        parse_array_or_error(&jxa_output, "reminders tasks (JXA)")
+                    }
+                    Err(e) => Err(e),
+                }
+            }
+        })
+        .await
     }
 }
 
 /// Update the completion status of a Reminders task
 #[command]
-pub fn update_reminders_status(
+pub async fn update_reminders_status(
     app: tauri::AppHandle,
     task_id: String,
     completed: bool,
 ) -> Result<RemindersResult, String> {
     #[cfg(not(target_os = "macos"))]
-    return Ok(RemindersResult {
-        success: Some(false),
-        error: Some("Not on macOS".into()),
-        id: None,
-    });
+    {
+        let _ = (app, task_id, completed);
+        return Ok(RemindersResult {
+            success: Some(false),
+            error: Some("Not on macOS".into()),
+            id: None,
+        });
+    }
 
     #[cfg(target_os = "macos")]
     {
-        #[cfg(not(debug_assertions))]
-        {
-            let _ = app;
-            return native_eventkit::update_status(task_id, completed);
-        }
-
-        #[cfg(debug_assertions)]
-        {
-            let completed_str = if completed { "true" } else { "false" };
-            let output = run_connector(&app, &["update-status", &task_id, completed_str])?;
-            match parse_result_or_error(&output, "update reminders status") {
-                Ok(v) => Ok(v),
-                Err(e) if should_use_jxa_fallback(&e) => {
-                    let jxa_output = jxa_update_status_output(&task_id, completed)?;
-                    parse_result_or_error(&jxa_output, "update reminders status (JXA)")
-                }
-                Err(e) => Err(e),
+        run_reminders_blocking(move || {
+            #[cfg(not(debug_assertions))]
+            {
+                let _ = app;
+                native_eventkit::update_status(task_id, completed)
             }
-        }
+
+            #[cfg(debug_assertions)]
+            {
+                let completed_str = if completed { "true" } else { "false" };
+                let output = run_connector(&app, &["update-status", &task_id, completed_str])?;
+                match parse_result_or_error(&output, "update reminders status") {
+                    Ok(v) => Ok(v),
+                    Err(e) if should_use_jxa_fallback(&e) => {
+                        let jxa_output = jxa_update_status_output(&task_id, completed)?;
+                        parse_result_or_error(&jxa_output, "update reminders status (JXA)")
+                    }
+                    Err(e) => Err(e),
+                }
+            }
+        })
+        .await
     }
 }
 
 /// Update the title of a Reminders task
 #[command]
-pub fn update_reminders_title(
+pub async fn update_reminders_title(
     app: tauri::AppHandle,
     task_id: String,
     title: String,
 ) -> Result<RemindersResult, String> {
     #[cfg(not(target_os = "macos"))]
-    return Ok(RemindersResult {
-        success: Some(false),
-        error: Some("Not on macOS".into()),
-        id: None,
-    });
+    {
+        let _ = (app, task_id, title);
+        return Ok(RemindersResult {
+            success: Some(false),
+            error: Some("Not on macOS".into()),
+            id: None,
+        });
+    }
 
     #[cfg(target_os = "macos")]
     {
-        #[cfg(not(debug_assertions))]
-        {
-            let _ = app;
-            return native_eventkit::update_title(task_id, title);
-        }
-
-        #[cfg(debug_assertions)]
-        {
-            let output = run_connector(&app, &["update-title", &task_id, &title])?;
-            match parse_result_or_error(&output, "update reminders title") {
-                Ok(v) => Ok(v),
-                Err(e) if should_use_jxa_fallback(&e) => {
-                    let jxa_output = jxa_update_title_output(&task_id, &title)?;
-                    parse_result_or_error(&jxa_output, "update reminders title (JXA)")
-                }
-                Err(e) => Err(e),
+        run_reminders_blocking(move || {
+            #[cfg(not(debug_assertions))]
+            {
+                let _ = app;
+                native_eventkit::update_title(task_id, title)
             }
-        }
+
+            #[cfg(debug_assertions)]
+            {
+                let output = run_connector(&app, &["update-title", &task_id, &title])?;
+                match parse_result_or_error(&output, "update reminders title") {
+                    Ok(v) => Ok(v),
+                    Err(e) if should_use_jxa_fallback(&e) => {
+                        let jxa_output = jxa_update_title_output(&task_id, &title)?;
+                        parse_result_or_error(&jxa_output, "update reminders title (JXA)")
+                    }
+                    Err(e) => Err(e),
+                }
+            }
+        })
+        .await
     }
 }
 
 /// Update the notes of a Reminders task
 #[command]
-pub fn update_reminders_notes(
+pub async fn update_reminders_notes(
     app: tauri::AppHandle,
     task_id: String,
     notes: String,
 ) -> Result<RemindersResult, String> {
     #[cfg(not(target_os = "macos"))]
-    return Ok(RemindersResult {
-        success: Some(false),
-        error: Some("Not on macOS".into()),
-        id: None,
-    });
+    {
+        let _ = (app, task_id, notes);
+        return Ok(RemindersResult {
+            success: Some(false),
+            error: Some("Not on macOS".into()),
+            id: None,
+        });
+    }
 
     #[cfg(target_os = "macos")]
     {
-        #[cfg(not(debug_assertions))]
-        {
-            let _ = app;
-            return native_eventkit::update_notes(task_id, notes);
-        }
-
-        #[cfg(debug_assertions)]
-        {
-            let output = run_connector(&app, &["update-notes", &task_id, &notes])?;
-            match parse_result_or_error(&output, "update reminders notes") {
-                Ok(v) => Ok(v),
-                Err(e) if should_use_jxa_fallback(&e) => {
-                    let jxa_output = jxa_update_notes_output(&task_id, &notes)?;
-                    parse_result_or_error(&jxa_output, "update reminders notes (JXA)")
-                }
-                Err(e) => Err(e),
+        run_reminders_blocking(move || {
+            #[cfg(not(debug_assertions))]
+            {
+                let _ = app;
+                native_eventkit::update_notes(task_id, notes)
             }
-        }
+
+            #[cfg(debug_assertions)]
+            {
+                let output = run_connector(&app, &["update-notes", &task_id, &notes])?;
+                match parse_result_or_error(&output, "update reminders notes") {
+                    Ok(v) => Ok(v),
+                    Err(e) if should_use_jxa_fallback(&e) => {
+                        let jxa_output = jxa_update_notes_output(&task_id, &notes)?;
+                        parse_result_or_error(&jxa_output, "update reminders notes (JXA)")
+                    }
+                    Err(e) => Err(e),
+                }
+            }
+        })
+        .await
     }
 }
 
 /// Delete a Reminders task
 #[command]
-pub fn delete_reminders_task(
+pub async fn delete_reminders_task(
     app: tauri::AppHandle,
     task_id: String,
 ) -> Result<RemindersResult, String> {
     #[cfg(not(target_os = "macos"))]
-    return Ok(RemindersResult {
-        success: Some(false),
-        error: Some("Not on macOS".into()),
-        id: None,
-    });
+    {
+        let _ = (app, task_id);
+        return Ok(RemindersResult {
+            success: Some(false),
+            error: Some("Not on macOS".into()),
+            id: None,
+        });
+    }
 
     #[cfg(target_os = "macos")]
     {
-        #[cfg(not(debug_assertions))]
-        {
-            let _ = app;
-            return native_eventkit::delete_task(task_id);
-        }
-
-        #[cfg(debug_assertions)]
-        {
-            let output = run_connector(&app, &["delete-task", &task_id])?;
-            match parse_result_or_error(&output, "delete reminders task") {
-                Ok(v) => Ok(v),
-                Err(e) if should_use_jxa_fallback(&e) => {
-                    let jxa_output = jxa_delete_task_output(&task_id)?;
-                    parse_result_or_error(&jxa_output, "delete reminders task (JXA)")
-                }
-                Err(e) => Err(e),
+        run_reminders_blocking(move || {
+            #[cfg(not(debug_assertions))]
+            {
+                let _ = app;
+                native_eventkit::delete_task(task_id)
             }
-        }
+
+            #[cfg(debug_assertions)]
+            {
+                let output = run_connector(&app, &["delete-task", &task_id])?;
+                match parse_result_or_error(&output, "delete reminders task") {
+                    Ok(v) => Ok(v),
+                    Err(e) if should_use_jxa_fallback(&e) => {
+                        let jxa_output = jxa_delete_task_output(&task_id)?;
+                        parse_result_or_error(&jxa_output, "delete reminders task (JXA)")
+                    }
+                    Err(e) => Err(e),
+                }
+            }
+        })
+        .await
     }
 }
 
 /// Create a new Reminders task
 #[command]
-pub fn create_reminders_task(
+pub async fn create_reminders_task(
     app: tauri::AppHandle,
     list_id: String,
     title: String,
 ) -> Result<RemindersResult, String> {
     #[cfg(not(target_os = "macos"))]
-    return Ok(RemindersResult {
-        success: Some(false),
-        error: Some("Not on macOS".into()),
-        id: None,
-    });
+    {
+        let _ = (app, list_id, title);
+        return Ok(RemindersResult {
+            success: Some(false),
+            error: Some("Not on macOS".into()),
+            id: None,
+        });
+    }
 
     #[cfg(target_os = "macos")]
     {
-        #[cfg(not(debug_assertions))]
-        {
-            let _ = app;
-            return native_eventkit::create_task(list_id, title);
-        }
-
-        #[cfg(debug_assertions)]
-        {
-            let output = run_connector(&app, &["create-task", &list_id, &title])?;
-            match parse_result_or_error(&output, "create reminders task") {
-                Ok(v) => Ok(v),
-                Err(e) if should_use_jxa_fallback(&e) => {
-                    let jxa_output = jxa_create_task_output(&list_id, &title)?;
-                    parse_result_or_error(&jxa_output, "create reminders task (JXA)")
-                }
-                Err(e) => Err(e),
+        run_reminders_blocking(move || {
+            #[cfg(not(debug_assertions))]
+            {
+                let _ = app;
+                native_eventkit::create_task(list_id, title)
             }
-        }
+
+            #[cfg(debug_assertions)]
+            {
+                let output = run_connector(&app, &["create-task", &list_id, &title])?;
+                match parse_result_or_error(&output, "create reminders task") {
+                    Ok(v) => Ok(v),
+                    Err(e) if should_use_jxa_fallback(&e) => {
+                        let jxa_output = jxa_create_task_output(&list_id, &title)?;
+                        parse_result_or_error(&jxa_output, "create reminders task (JXA)")
+                    }
+                    Err(e) => Err(e),
+                }
+            }
+        })
+        .await
     }
 }
 
