@@ -68,7 +68,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://redd-todo.netlify.app/updates/{{target}}/{{arch}}/{{current_version}}"
+        "https://todo.digitalhabits.org/updates/{{target}}/{{arch}}/{{current_version}}"
       ],
       "pubkey": ""
     },

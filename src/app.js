@@ -8162,8 +8162,8 @@ async function refreshBasecampToken() {
                 ? tauriAPI.fetch.bind(tauriAPI)
                 : fetch;
 
-            // Use Netlify function to refresh token (keeps client_secret server-side)
-            const response = await fetchFn('https://redd-todo.netlify.app/.netlify/functions/auth', {
+            // Use Amplify hosting to refresh token (keeps client_secret server-side)
+            const response = await fetchFn('https://todo.digitalhabits.org/api/auth', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -8187,7 +8187,7 @@ async function refreshBasecampToken() {
                 }
                 saveData();
                 updateBasecampUI();
-                console.log('Basecamp token refreshed successfully via Netlify.');
+                console.log('Basecamp token refreshed successfully via Amplify hosting.');
                 return true;
             }
         } catch (e) {

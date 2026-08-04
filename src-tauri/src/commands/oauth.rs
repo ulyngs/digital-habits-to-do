@@ -4,12 +4,12 @@ use std::thread;
 use tauri::{command, AppHandle, Emitter, Manager};
 
 const BC_REDIRECT_URI_DEV: &str = "http://localhost:3000/callback";
-const BC_REDIRECT_URI_PROD: &str = "https://redd-todo.netlify.app/.netlify/functions/auth";
+const BC_REDIRECT_URI_PROD: &str = "https://todo.digitalhabits.org/api/auth";
 const LOCAL_CALLBACK_STATE_PREFIX: &str = "localhost:";
 
-// Dev client ID uses localhost redirect (must match netlify/functions/exchange.js DEV_CLIENT_ID)
+// Dev client ID uses localhost redirect (must match hosting/src/basecamp.js DEV_CLIENT_ID)
 const BC_CLIENT_ID_DEV: &str = "aed7f4889aa6bb83b74e8e494e70701d59d1c9c5";
-// Prod client ID for Netlify redirect (public; must match exchange.js PROD_CLIENT_ID).
+// Prod client ID for Amplify redirect (public; must match hosting/src/basecamp.js PROD_CLIENT_ID).
 // Release builds cannot rely on .env: packaged apps have no project cwd and do not ship .env.
 const BC_CLIENT_ID_PROD: &str = "d83392d7842f055157c3fef1f5464b2e15a013dc";
 
@@ -71,7 +71,7 @@ pub async fn start_basecamp_auth(app: AppHandle) -> Result<(), String> {
         std::thread::sleep(std::time::Duration::from_millis(100));
     } else {
         // Prefer the localhost bridge; if it can't start (e.g. sandbox restrictions),
-        // omit the state param so the Netlify callback falls back to the deep link.
+        // omit the state param so the Amplify callback falls back to the deep link.
         match start_local_token_bridge_server(app.clone()) {
             Ok(bridge_port) => {
                 let state = format!("{LOCAL_CALLBACK_STATE_PREFIX}{bridge_port}");
@@ -146,7 +146,7 @@ fn start_local_callback_server(app: AppHandle, client_id: String) {
                 if let Some(code) = code {
                     log::info!("[Basecamp OAuth] Received code, exchanging for token...");
 
-                    // Exchange code for token via Netlify function
+                    // Exchange code for token via Amplify hosting function
                     let rt = tokio::runtime::Runtime::new().unwrap();
                     match rt.block_on(exchange_code_for_token(&code, &client_id)) {
                         Ok(token_data) => {
@@ -358,12 +358,12 @@ fn emit_auth_error(app: &AppHandle, error_msg: &str) {
     }
 }
 
-/// Exchange authorization code for tokens via Netlify function
+/// Exchange authorization code for tokens via Amplify hosting function
 async fn exchange_code_for_token(code: &str, client_id: &str) -> Result<serde_json::Value, String> {
     let client = reqwest::Client::new();
 
     let response = client
-        .post("https://redd-todo.netlify.app/.netlify/functions/exchange")
+        .post("https://todo.digitalhabits.org/api/exchange")
         .json(&serde_json::json!({
             "code": code,
             "redirect_uri": BC_REDIRECT_URI_DEV,

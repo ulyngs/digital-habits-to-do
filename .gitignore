@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Amplify Hosting build output
+hosting/.amplify-hosting/
+
 # Production
 dist/
 release/
