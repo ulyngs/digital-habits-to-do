@@ -9,6 +9,7 @@ const {
     buildLocalBridgePage,
     clientSecretFor
 } = require('./basecamp');
+const { ensureBasecampCredentials } = require('./secrets');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -19,6 +20,19 @@ function setCors(res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+
+async function requireBasecampCredentials(res) {
+    try {
+        await ensureBasecampCredentials();
+        return true;
+    } catch (error) {
+        console.error('Failed to load Basecamp credentials:', error);
+        res.status(500).json({
+            error: 'Server misconfigured: unable to load Basecamp credentials'
+        });
+        return false;
+    }
 }
 
 app.options('/api/auth', (req, res) => {
@@ -48,6 +62,10 @@ app.post('/api/auth', async (req, res) => {
             return res.status(400).json({ error: 'Missing refresh_token' });
         }
 
+        if (!(await requireBasecampCredentials(res))) {
+            return;
+        }
+
         const clientId = process.env.BC_CLIENT_ID;
         const clientSecret = process.env.BC_CLIENT_SECRET;
         if (!clientId || !clientSecret) {
@@ -74,6 +92,16 @@ app.get('/api/auth', async (req, res) => {
 
     if (!code) {
         return res.status(400).type('text/plain').send('Missing code parameter');
+    }
+
+    try {
+        await ensureBasecampCredentials();
+    } catch (error) {
+        console.error('Failed to load Basecamp credentials:', error);
+        return res
+            .status(500)
+            .type('text/plain')
+            .send('Server misconfigured: unable to load Basecamp credentials');
     }
 
     const clientId = process.env.BC_CLIENT_ID;
@@ -147,6 +175,10 @@ app.post('/api/exchange', async (req, res) => {
         const { code, redirect_uri: redirectUri, client_id: clientId } = req.body || {};
         if (!code) {
             return res.status(400).json({ error: 'Missing authorization code' });
+        }
+
+        if (!(await requireBasecampCredentials(res))) {
+            return;
         }
 
         const resolvedClientId = clientId || PROD_CLIENT_ID;
