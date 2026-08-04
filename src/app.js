@@ -350,7 +350,7 @@ const translations = {
         // Time
         minutes: 'm',
         rebrandOnboardingTitleHtml:
-            'ReDD To-Do is now <span class="rebrand-onboarding-title-brand">Digital Habits: To-Do</span>',
+            'ReDD To-Do is now<br><span class="rebrand-onboarding-title-brand">Digital Habits: To-Do</span>',
         rebrandOnboardingSubtitle:
             'Same app, new name. Your tasks, tabs, and settings are all unchanged.',
         rebrandOnboardingBody1Html:
@@ -439,7 +439,7 @@ const translations = {
         // Time
         minutes: 'm',
         rebrandOnboardingTitleHtml:
-            'ReDD To-Do hedder nu <span class="rebrand-onboarding-title-brand">Digital Habits: To-Do</span>',
+            'ReDD To-Do hedder nu<br><span class="rebrand-onboarding-title-brand">Digital Habits: To-Do</span>',
         rebrandOnboardingSubtitle:
             'Samme app, nyt navn. Dine opgaver, faner og indstillinger er uændrede.',
         rebrandOnboardingBody1Html:
