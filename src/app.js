@@ -8322,50 +8322,17 @@ async function fetchAllBasecampTodosForList(projectId, listId) {
     return Array.from(byId.values());
 }
 
-async function checkProjectAccess(projectId, email) {
-    try {
-        const response = await basecampFetch(`https://3.basecampapi.com/${basecampConfig.accountId}/projects/${projectId}/people.json`, {
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        if (!response.ok) return false;
-        const people = await response.json();
-        return people.some(p => p.email_address && p.email_address.toLowerCase() === email.toLowerCase());
-    } catch (e) {
-        console.error(`Error checking access for project ${projectId}:`, e);
-        return false;
-    }
-}
-
 async function fetchBasecampProjects() {
     if (!basecampConfig.isConnected) return [];
     try {
-        // Basecamp 3 API: GET /projects.json
+        // /projects.json already returns only projects visible to the authenticated user.
         const response = await basecampFetch(`https://3.basecampapi.com/${basecampConfig.accountId}/projects.json`, {
             headers: {
                 'Content-Type': 'application/json'
             }
         });
         if (!response.ok) throw new Error('Failed to fetch projects');
-        let projects = await response.json();
-
-        // Filter by email if provided
-        if (basecampConfig.email && basecampConfig.email.trim()) {
-            const email = basecampConfig.email.trim();
-
-            // Check access for all projects in parallel
-            // Note: This might hit rate limits if there are many projects
-            const accessResults = await Promise.all(
-                projects.map(async (p) => {
-                    const hasAccess = await checkProjectAccess(p.id, email);
-                    return hasAccess ? p : null;
-                })
-            );
-            projects = accessResults.filter(p => p !== null);
-        }
-
-        return projects;
+        return await response.json();
     } catch (e) {
         console.error('Basecamp Error:', e);
         return [];
