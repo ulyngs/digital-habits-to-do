@@ -4830,23 +4830,24 @@ function setupEventListeners() {
                     return;
                 }
 
-                // Sync all relevant lists
+                // Sync each relevant linked list in turn (avoid Basecamp rate-limit stampedes)
                 syncBtn.classList.add('spinning');
 
-                const promises = [];
-                syncedTabsWithFavs.forEach(tabId => {
-                    const tab = tabs[tabId];
-                    if (tab.basecampListId && basecampConfig.isConnected) {
-                        promises.push(syncBasecampList(tabId));
+                (async () => {
+                    try {
+                        for (const tabId of syncedTabsWithFavs) {
+                            const tab = tabs[tabId];
+                            if (tab.basecampListId && basecampConfig.isConnected) {
+                                await syncBasecampList(tabId);
+                            }
+                            if (tab.remindersListId && remindersConfig.isConnected) {
+                                await syncRemindersList(tabId);
+                            }
+                        }
+                    } finally {
+                        setTimeout(() => syncBtn.classList.remove('spinning'), 500);
                     }
-                    if (tab.remindersListId && remindersConfig.isConnected) {
-                        promises.push(syncRemindersList(tabId));
-                    }
-                });
-
-                Promise.all(promises).finally(() => {
-                    setTimeout(() => syncBtn.classList.remove('spinning'), 500);
-                });
+                })();
 
                 return;
             }
@@ -8207,6 +8208,32 @@ async function refreshBasecampToken() {
     }
 }
 
+function basecampSleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getBasecampRetryAfterMs(response) {
+    let retryAfter = null;
+    if (response?.headers) {
+        if (typeof response.headers.get === 'function') {
+            retryAfter = response.headers.get('Retry-After') || response.headers.get('retry-after');
+        } else {
+            const key = Object.keys(response.headers).find(k => k.toLowerCase() === 'retry-after');
+            if (key) retryAfter = response.headers[key];
+        }
+    }
+    if (retryAfter == null || retryAfter === '') return 2000;
+    const asSeconds = Number(retryAfter);
+    if (!Number.isNaN(asSeconds) && asSeconds >= 0) {
+        return Math.max(1000, asSeconds * 1000);
+    }
+    const asDate = Date.parse(retryAfter);
+    if (!Number.isNaN(asDate)) {
+        return Math.max(1000, asDate - Date.now());
+    }
+    return 2000;
+}
+
 async function basecampFetch(url, options = {}) {
     // Ensure headers exist
     if (!options.headers) options.headers = {};
@@ -8220,22 +8247,34 @@ async function basecampFetch(url, options = {}) {
         ? tauriAPI.fetch.bind(tauriAPI)
         : fetch;
 
-    // First attempt
-    let response = await fetchFn(url, options);
+    const maxAttempts = 5;
+    let response = null;
 
-    // If 401, try to refresh
-    if (response.status === 401) {
-        console.log('Received 401 from Basecamp. Attempting to refresh token...');
-        const refreshed = await refreshBasecampToken();
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        response = await fetchFn(url, options);
 
-        if (refreshed) {
-            // Update header with new token
-            options.headers['Authorization'] = `Bearer ${basecampConfig.accessToken}`;
-            // Retry request
-            response = await fetchFn(url, options);
-        } else {
-            console.error('Failed to refresh token or no refresh credentials available.');
+        // If 401, try to refresh once then retry this attempt
+        if (response.status === 401) {
+            console.log('Received 401 from Basecamp. Attempting to refresh token...');
+            const refreshed = await refreshBasecampToken();
+
+            if (refreshed) {
+                options.headers['Authorization'] = `Bearer ${basecampConfig.accessToken}`;
+                response = await fetchFn(url, options);
+            } else {
+                console.error('Failed to refresh token or no refresh credentials available.');
+                return response;
+            }
         }
+
+        if (response.status === 429) {
+            const waitMs = getBasecampRetryAfterMs(response);
+            console.warn(`[Basecamp] Rate limited (429). Waiting ${waitMs}ms before retry ${attempt + 1}/${maxAttempts}...`);
+            await basecampSleep(waitMs);
+            continue;
+        }
+
+        return response;
     }
 
     return response;
@@ -8290,10 +8329,9 @@ async function basecampFetchAllPages(url) {
 // Active + completed todos for one todolist/group id (all pages)
 async function fetchBasecampTodosForList(projectId, listId) {
     const baseUrl = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${projectId}/todolists/${listId}/todos.json`;
-    const [activeTodos, completedTodos] = await Promise.all([
-        basecampFetchAllPages(baseUrl),
-        basecampFetchAllPages(`${baseUrl}?completed=true`)
-    ]);
+    // Sequential to avoid bursting Basecamp's rate limit on large lists
+    const activeTodos = await basecampFetchAllPages(baseUrl);
+    const completedTodos = await basecampFetchAllPages(`${baseUrl}?completed=true`);
     return [...activeTodos, ...completedTodos];
 }
 
@@ -8301,17 +8339,20 @@ async function fetchBasecampTodosForList(projectId, listId) {
 async function fetchAllBasecampTodosForList(projectId, listId) {
     const groupsUrl = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${projectId}/todolists/${listId}/groups.json`;
 
-    const [directTodos, groups] = await Promise.all([
-        fetchBasecampTodosForList(projectId, listId),
-        basecampFetchAllPages(groupsUrl).catch(err => {
-            console.warn('Failed to fetch Basecamp todolist groups:', err);
-            return [];
-        })
-    ]);
+    const directTodos = await fetchBasecampTodosForList(projectId, listId);
 
-    const groupTodoArrays = await Promise.all(
-        (Array.isArray(groups) ? groups : []).map(group => fetchBasecampTodosForList(projectId, group.id))
-    );
+    let groups = [];
+    try {
+        groups = await basecampFetchAllPages(groupsUrl);
+    } catch (err) {
+        console.warn('Failed to fetch Basecamp todolist groups:', err);
+    }
+
+    // Fetch sections one at a time — parallel fan-out was the 429 cliff for large lists
+    const groupTodoArrays = [];
+    for (const group of (Array.isArray(groups) ? groups : [])) {
+        groupTodoArrays.push(await fetchBasecampTodosForList(projectId, group.id));
+    }
 
     const byId = new Map();
     for (const todo of [...directTodos, ...groupTodoArrays.flat()]) {
