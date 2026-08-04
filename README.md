@@ -144,7 +144,7 @@ flowchart LR
 
     LS[("<b>localStorage</b><br/>key: 'redd-todo-data'<br/>tasks, tabs, groups,<br/>EULA, settings,<br/>Basecamp tokens")]
 
-    BC[/"Basecamp API<br/>(OAuth via Netlify fn)"/]
+    BC[/"Basecamp API<br/>(OAuth via Amplify at todo.digitalhabits.org)"/]
     AR[/"Apple Reminders<br/>via EventKit<br/>(macOS only)"/]
 
     UI <-->|"Tauri invoke"| Rust
@@ -179,11 +179,14 @@ redd-todo/
 │   ├── src/             # Rust source (commands, window mgmt, OAuth, etc.)
 │   ├── Cargo.toml       # Rust deps
 │   └── tauri.conf.json  # Tauri config (bundle id, signing, etc.)
+├── hosting/             # Amplify Hosting (Basecamp OAuth + Tauri updater)
 ├── scripts/             # Build/signing/notarisation helpers
 ├── build/               # macOS entitlements and provisioning profiles
 ├── assets/              # App icons
 └── README.md
 ```
+
+Basecamp OAuth and auto-updater files are served from a dedicated Amplify app at [`todo.digitalhabits.org`](https://todo.digitalhabits.org). See [`hosting/README.md`](hosting/README.md) for deploy, DNS, secrets, and cutover steps.
 
 ## Development
 You might need to trigger access for your IDE to Apple Reminders, by running `osascript -e 'tell application "Reminders" to get name of every list'`
