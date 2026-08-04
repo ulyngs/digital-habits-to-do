@@ -4691,7 +4691,10 @@ function setupEventListeners() {
                         updateRemindersUI();
                         updateSyncButtonState();
                         if (lists.length === 0) {
-                            alert('Connection successful but no lists in Apple Reminders.');
+                            alert(
+                                'Successfully connected to Apple Reminders.\n\n' +
+                                'No lists are present in Apple Reminders. Create one to see them in Digital Habits: To-Do.'
+                            );
                         }
                     } else {
                         const errMsg = (lists && typeof lists === 'object' && lists.error) ? lists.error : null;
