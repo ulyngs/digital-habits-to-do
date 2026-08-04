@@ -8326,13 +8326,10 @@ async function fetchBasecampProjects() {
     if (!basecampConfig.isConnected) return [];
     try {
         // /projects.json already returns only projects visible to the authenticated user.
-        const response = await basecampFetch(`https://3.basecampapi.com/${basecampConfig.accountId}/projects.json`, {
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        if (!response.ok) throw new Error('Failed to fetch projects');
-        return await response.json();
+        // Follow pagination so accounts with more than one page still get a complete list.
+        return await basecampFetchAllPages(
+            `https://3.basecampapi.com/${basecampConfig.accountId}/projects.json`
+        );
     } catch (e) {
         console.error('Basecamp Error:', e);
         return [];
