@@ -140,20 +140,6 @@ try {
 }
 
 const stagedAppPath = path.join(tempStageDir, `${productName}.app`);
-const connectorPath = path.join(stagedAppPath, 'Contents', 'Resources', 'reminders-connector');
-if (fs.existsSync(connectorPath)) {
-  runOrThrow('codesign', [
-    '--force',
-    '--sign',
-    appIdentity,
-    '--options',
-    'runtime',
-    '--timestamp',
-    '--entitlements',
-    entitlementsPath,
-    connectorPath
-  ]);
-}
 
 runOrThrow('codesign', [
   '--force',

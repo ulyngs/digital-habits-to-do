@@ -145,12 +145,12 @@ flowchart LR
     LS[("<b>localStorage</b><br/>key: 'redd-todo-data'<br/>tasks, tabs, groups,<br/>EULA, settings,<br/>Basecamp tokens")]
 
     BC[/"Basecamp API<br/>(OAuth via Netlify fn)"/]
-    AR[/"Apple Reminders<br/>via reminders-connector<br/>binary (macOS only)"/]
+    AR[/"Apple Reminders<br/>via EventKit<br/>(macOS only)"/]
 
     UI <-->|"Tauri invoke"| Rust
     UI <-->|"read / write"| LS
     Rust -->|"HTTP"| BC
-    Rust -->|"spawn"| AR
+    Rust -->|"EventKit"| AR
 ```
 
 ### Where `localStorage` lands on disk

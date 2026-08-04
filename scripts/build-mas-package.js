@@ -9,7 +9,6 @@ const tauriConfigPath = path.join(repoRoot, 'src-tauri', 'tauri.conf.json');
 const cargoTomlPath = path.join(repoRoot, 'src-tauri', 'Cargo.toml');
 const tempTauriConfigPath = path.join(repoRoot, 'src-tauri', 'tauri.appstore.temp.conf.json');
 const masEntitlementsPath = path.join(repoRoot, 'build', 'entitlements.mas.plist');
-const masInheritEntitlementsPath = path.join(repoRoot, 'build', 'entitlements.mas.inherit.plist');
 const targetTriple = 'universal-apple-darwin';
 const skipTauriBuild = process.argv.includes('--skip-tauri-build');
 const optional = process.argv.includes('--optional');
@@ -351,12 +350,8 @@ if (!appIdentityName) {
 console.log(`[build:mas] Using app identity: ${appIdentityName}`);
 const teamId = getTeamIdFromIdentity(appIdentityName);
 
-if (!fs.existsSync(masEntitlementsPath) || !fs.existsSync(masInheritEntitlementsPath)) {
-  fail(
-    `Missing MAS entitlement files. Expected:\n` +
-    `  - ${masEntitlementsPath}\n` +
-    `  - ${masInheritEntitlementsPath}`
-  );
+if (!fs.existsSync(masEntitlementsPath)) {
+  fail(`Missing MAS entitlement file. Expected:\n  - ${masEntitlementsPath}`);
 }
 
 const originalTauriConfigRaw = fs.readFileSync(tauriConfigPath, 'utf8');
@@ -457,11 +452,6 @@ try {
   const keychainPath = ensureCiKeychainReady();
   const appIdentity = resolveCodesigningIdentity(appIdentityName, keychainPath);
   const installerIdentity = resolveInstallerIdentity(installerIdentityName, keychainPath);
-
-  const remindersConnectorPath = path.join(appBundlePath, 'Contents', 'Resources', 'reminders-connector');
-  if (fs.existsSync(remindersConnectorPath)) {
-    runOrThrow('codesign', codesignArgs(appIdentity, masInheritEntitlementsPath, remindersConnectorPath, keychainPath));
-  }
 
   runOrThrow('codesign', codesignArgs(appIdentity, tempMasEntitlementsPath, appBundlePath, keychainPath));
 

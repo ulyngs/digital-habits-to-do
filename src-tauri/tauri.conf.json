@@ -60,9 +60,7 @@
       "providerShortName": null,
       "signingIdentity": "Developer ID Application: Reduce Digital Distraction Ltd (JD647S9RT6)"
     },
-    "resources": [
-      "reminders-connector"
-    ],
+    "resources": [],
     "externalBin": []
   },
   "plugins": {
