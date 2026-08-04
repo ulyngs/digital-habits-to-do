@@ -4683,20 +4683,17 @@ function setupEventListeners() {
                         keys: (lists && typeof lists === 'object' && !Array.isArray(lists)) ? Object.keys(lists) : undefined
                     });
 
-                    // Only treat as connected if we got at least one list.
-                    if (Array.isArray(lists) && lists.length > 0) {
+                    // Any array means EventKit access worked — including zero lists
+                    // (new Mac / no Reminders lists yet is a valid connected state).
+                    if (Array.isArray(lists)) {
                         remindersConfig.isConnected = true;
                         saveData();
                         updateRemindersUI();
                         updateSyncButtonState();
-                    } else {
-                        if (Array.isArray(lists) && lists.length === 0) {
-                            alert(
-                                'Connected, but no Reminders lists were returned.\n\n' +
-                                'This usually means macOS has not granted this dev process access yet. ' +
-                                'Please re-open Reminders privacy settings and ensure access is enabled for the current app/process.'
-                            );
+                        if (lists.length === 0) {
+                            alert('Connection successful but no lists in Apple Reminders.');
                         }
+                    } else {
                         const errMsg = (lists && typeof lists === 'object' && lists.error) ? lists.error : null;
                         if (isRemindersPermissionDenied(errMsg || '')) {
                             await handleRemindersPermissionDenied();
