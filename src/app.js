@@ -8064,6 +8064,9 @@ function loadData() {
     }
 }
 
+// Basecamp requires a User-Agent with app name + contact; see bc3-api README.
+const BASECAMP_USER_AGENT = 'Digital Habits: To-Do (team@digitalhabits.org)';
+
 // New function to fetch identity/accounts
 async function fetchBasecampIdentity() {
     try {
@@ -8075,7 +8078,8 @@ async function fetchBasecampIdentity() {
 
         const response = await fetchFn('https://launchpad.37signals.com/authorization.json', {
             headers: {
-                'Authorization': `Bearer ${basecampConfig.accessToken}`
+                'Authorization': `Bearer ${basecampConfig.accessToken}`,
+                'User-Agent': BASECAMP_USER_AGENT
             }
         });
 
@@ -8209,6 +8213,7 @@ async function basecampFetch(url, options = {}) {
 
     // Add Authorization header
     options.headers['Authorization'] = `Bearer ${basecampConfig.accessToken}`;
+    options.headers['User-Agent'] = BASECAMP_USER_AGENT;
 
     // Use Tauri HTTP client if available (bypasses CORS)
     const fetchFn = (reddIsTauri && typeof tauriAPI !== 'undefined' && tauriAPI.fetch)
