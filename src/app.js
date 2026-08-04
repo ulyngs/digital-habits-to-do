@@ -4657,8 +4657,8 @@ function setupEventListeners() {
 
             const handleRemindersPermissionDenied = async () => {
                 alert(
-                    'Reminders access is currently denied.\n\n' +
-                    'I will open macOS Privacy settings now. Enable access for this app, then return here and try again.'
+                    'Access to Apple Reminders is currently denied.\n\n' +
+                    'Privacy settings have been automatically opened. Please grant access to Reminders for Digital Habits: To-Do, then return here and try again.'
                 );
                 if (reddIsTauri && typeof tauriAPI !== 'undefined') {
                     try {
