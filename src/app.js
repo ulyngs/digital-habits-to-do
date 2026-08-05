@@ -5004,16 +5004,17 @@ function setupEventListeners() {
         });
     }
 
-    // Handle all external links (http(s) and mailto)
+    // External links: Tauri's shell plugin also opens target=_blank, so we must
+    // stopImmediatePropagation in the capture phase or the URL opens twice.
     document.addEventListener('click', (event) => {
         const anchor = event.target.closest?.('a[href]');
         if (!anchor) return;
-        const href = anchor.href || '';
-        if (href.startsWith('http') || href.startsWith('mailto:')) {
-            event.preventDefault();
-            openExternal(href);
-        }
-    });
+        const href = anchor.getAttribute('href') || '';
+        if (!href.startsWith('http') && !href.startsWith('mailto:')) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        openExternal(anchor.href || href);
+    }, true);
 
     // Close modal or exit fullscreen on Escape key
     document.addEventListener('keydown', (e) => {
