@@ -22,6 +22,59 @@ plus filtered bullets plus sign-off — never a custom headline blockquote.
 - `--platform linux` — shared + `#### Linux`
 - Always skips `Version:` lines and release-engineering bullets
 
+## v2.9.0
+
+### BRANDING
+
+- **A proper welcome to Digital Habits.** Existing users upgrading from
+  ReDD To-Do now get a one-time announcement on first launch explaining
+  the new app name and that the Reduce Digital Distraction Project is now
+  **Centre for Digital Habits** ([digitalhabits.org](https://digitalhabits.org)).
+
+### SETTINGS
+
+- **Full-screen Settings on narrower windows.** On thinner windows, Settings
+  opens as a full-screen sheet with a sticky header (back + title), sticky
+  Close footer, and the view switcher / settings gear hidden so you stay in
+  Settings until you leave.
+- **Clearer Settings layout.** Feedback and suggestions sit at the top of
+  Settings, and Close stays pinned in a sticky footer while you scroll.
+- **External links open once.** Links in Settings (and elsewhere) no longer
+  open two browser tabs when clicked.
+
+### LISTS & IMPORT
+
+- **Import options match what’s connected.** When editing a list, Basecamp
+  and Apple Reminders import choices only appear if that integration is
+  actually connected — unused options stay hidden.
+
+### BASECAMP
+
+- **More reliable Basecamp sync.** Basecamp API requests now identify the
+  app correctly, so connect and sync stay stable against Basecamp’s API
+  requirements.
+- **Large number of projects.** The project dropdown no longer comes back
+  empty or incomplete when you have many projects — it loads the full
+  list without tripping Basecamp’s rate limits.
+- **Smoother list sync.** Syncing Basecamp lists (especially ones with
+  many sections) paces requests and retries when rate-limited, so sync is
+  less likely to fail or miss work.
+
+### BY PLATFORM
+
+#### macOS
+
+- **Reminders connect with empty accounts.** You can connect Apple
+  Reminders even when you don’t have any lists yet, instead of being
+  treated as a permission failure.
+- **Reminders stays responsive.** Connecting and syncing Reminders no
+  longer freezes the app UI while waiting on EventKit — especially
+  noticeable with large iCloud accounts.
+- **Clearer Reminders messages.** Access-denied and empty-list guidance
+  after connect is clearer.
+
+- **Version:** 2.9.0 (macOS and Windows).
+
 ## v2.8.0
 
 ### BRANDING
