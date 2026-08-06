@@ -119,8 +119,10 @@ an unsigned `.msix` under:
 - `for-distribution/x86_64-pc-windows-msvc/Digital-Habits-To-Do_<version>.0_x64.msix`
 
 **CI releases:** push a `v*` tag (or run Actions → **Release build**) to create a
-GitHub Release and submit the MSIX to Partner Center. Setup:
-[docs/microsoft-store-ci.md](docs/microsoft-store-ci.md).
+GitHub Release and submit to Microsoft Store / Mac App Store. Changelog style:
+[changelog-style.md](changelog-style.md). Store setup:
+[docs/microsoft-store-ci.md](docs/microsoft-store-ci.md),
+[docs/mac-app-store-ci.md](docs/mac-app-store-ci.md).
 
 Note: To build with custom icons, place your icon files in the `assets/` directory:
 *   `assets/icon.icns` (Mac)

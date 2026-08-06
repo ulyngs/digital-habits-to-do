@@ -11,15 +11,16 @@ App Store Connect (and vice versa).
 ## What goes into Windows "What's new"
 
 [`scripts/changelog-to-store-whats-new.js`](../scripts/changelog-to-store-whats-new.js)
-is run with `--platform windows`. It keeps:
+is run with `--platform windows`. See [`changelog-style.md`](../changelog-style.md)
+for headings and writing rules. It includes:
 
-- Shared bullets (directly under `## vX.Y.Z` or thematic `###` sections), and
-- Bullets under `#### Windows` (only present when there are Windows-only notes).
+- The author-written “This update comes with…” line from `## vX.Y.Z`
+- Non-empty user-facing section headings + bullets (untagged + `[windows]`)
+- Standard Hi folks / open-source / Cheers footer
 
-It drops `#### macOS` / `#### Linux`, `Version:` lines, and
-release-engineering bullets (CI / Store submit / Partner Center). Output always
-uses the fixed intro + bullets + sign-off, capped at Partner Center’s 10,000
-character limit.
+It excludes **Internal**, other-platform tags (`[macos]` / `[linux]`), and
+strips markdown. Legacy `### BY PLATFORM` / `#### Windows` nesting still works
+for older entries. Capped at Partner Center’s 10,000 character limit.
 
 Mac App Store uses the same script with `--platform macos` — see
 [`mac-app-store-ci.md`](mac-app-store-ci.md).
@@ -69,7 +70,7 @@ Flow inside [`scripts/submit-microsoft-store.ps1`](../scripts/submit-microsoft-s
 1. Bundle `.msix` into `.msixbundle` (`makeappx`).
 2. Build What’s new
    ([`scripts/changelog-to-store-whats-new.js`](../scripts/changelog-to-store-whats-new.js)
-   `--platform windows`) — friendly intro + product bullets + sign-off.
+   `--platform windows`) — see [`changelog-style.md`](../changelog-style.md).
 3. `msstore publish <bundle> -id <productId> -nc` (upload only).
 4. Stamp `releaseNotes` and listing `description` from
    [`store-listing/description.txt`](../store-listing/description.txt), and
