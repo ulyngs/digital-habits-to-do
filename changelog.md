@@ -14,6 +14,46 @@ This update comes with some design improvements and under-the-hood improvements.
 
 ### Branding
 
+- Existing users upgrading from ReDD To-Do now get a one-time announcement on
+  first launch explaining the new app name and that the Reduce Digital
+  Distraction Project is now **Centre for Digital Habits**
+  ([digitalhabits.org](https://digitalhabits.org)).
+
+### Integrations
+
+- When editing a list, Basecamp and Apple Reminders import choices only appear
+  if that integration is actually connected.
+- Connecting and syncing Basecamp stays more stable, including when you have
+  many projects or large lists.
+- [macos] You can connect Apple Reminders even when you do not have any lists
+  yet.
+- [macos] Access-denied and empty-list guidance after connecting Reminders is
+  clearer.
+
+### Performance
+
+- [macos] Connecting and syncing Reminders no longer freezes the app while
+  waiting on the system — especially with large iCloud accounts.
+
+### Fixes & Polish
+
+- The design of the Settings screen has been improved.
+- Links in Settings (and elsewhere) no longer open two browser tabs when
+  clicked.
+
+### Internal
+
+- Development builds no longer force the Digital Habits rename notice on every
+  launch.
+- Moved updater and Basecamp OAuth hosting to Amplify, with Basecamp secrets
+  loaded from AWS Secrets Manager.
+
+## v2.9.0 (previous format)
+
+This update comes with some design improvements and under-the-hood improvements.
+
+### Branding
+
 - **A proper welcome to Digital Habits.** Existing users upgrading from
   ReDD To-Do now get a one-time announcement on first launch explaining the new
   app name and that the Reduce Digital Distraction Project is now

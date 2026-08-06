@@ -41,7 +41,7 @@ Supported platforms: **macOS**, **Windows**, and **Linux**. Public store
 What’s New is generated for **Windows** (Microsoft Store) and **macOS** (Mac
 App Store).
 
-Optional tags go at the start of the bullet (before the bold lead-in):
+Optional tags go at the start of the bullet:
 
 | Tag | Meaning |
 | --- | --- |
@@ -51,6 +51,10 @@ Optional tags go at the start of the bullet (before the bold lead-in):
 
 Rules:
 
+- Before tagging, **read the app architecture** (README, platform docs, and how
+  the feature ships). Tag from where users experience the change — not from the
+  PR machine, a single test OS, or where the code file lives. Example: Apple
+  Reminders is macOS-only; Basecamp sync is not.
 - Tags describe **where users experience the change**, not where the code lives.
 - Omit the tag when the change applies on every supported platform.
 - Prefer the narrowest accurate tag.
@@ -59,10 +63,9 @@ Rules:
 - Do not duplicate the same change under multiple sections.
 
 ```markdown
-- [macos] **Reminders connect with empty accounts.** You can connect Apple
-  Reminders even when you do not have any lists yet.
-- [windows] **Clearer title bar controls.** Minimise, maximise and close sit
-  cleanly in the in-app title bar.
+- [macos] You can connect Apple Reminders even when you do not have any lists
+  yet.
+- [windows] Minimise, maximise and close sit cleanly in the in-app title bar.
 ```
 
 Untagged bullets apply everywhere.
@@ -71,23 +74,22 @@ Untagged bullets apply everywhere.
 
 ## Writing style
 
-### Branding, Tasks & Focus Mode, Planner, Integrations, Performance, Internal
+Write **plain sentences** for every section — including Branding, Tasks & Focus
+Mode, Planner, Integrations, Performance, Fixes & Polish, and Internal. Do
+**not** use a bold lead-in (`**Short title.** …`). Bold is only for product
+names or UI labels inside the sentence when needed.
 
-Use a **short bold lead-in**, then one or two plain sentences:
+One or two short sentences per bullet. State the change actively and clearly.
+Keep it specific enough that people recognise the change, but not so detailed
+that store notes become repetitive or run over character limits.
 
 ```markdown
-- **More reliable Basecamp sync.** Connecting and syncing Basecamp stays
-  stable against Basecamp’s API requirements.
-- [macos] **Reminders stays responsive.** Connecting and syncing Reminders no
-  longer freezes the app while waiting on the system.
+- Connecting and syncing Basecamp stays more stable, including when you have
+  many projects or large lists.
+- [macos] Connecting and syncing Reminders no longer freezes the app while
+  waiting on the system.
+- The design of the Settings screen has been improved.
 ```
-
-The bold lead-in is a short summary (a few words). The sentence after it must
-still make sense on its own — do not repeat the same idea twice.
-
-### Fixes & Polish
-
-**No bold lead-in.** Write one plain sentence that states the fix or UI change.
 
 For UI/layout polish on a screen, prefer **one short screen-level bullet** over
 listing each control move or label tweak:
@@ -131,13 +133,14 @@ Focus Mode, Planner, Settings, Done, Basecamp, Apple Reminders, Google Tasks.
 
 ### Avoid
 
+- Bold lead-ins (`**Short title.** Body…`) — they waste store character budget
+  and read as repetitive once markdown is stripped.
 - Developer jargon: EventKit, User-Agent, rate-limit internals, “under the hood”
   unless users need a plain explanation.
 - Hype or filler: “enhancements”, “various improvements”, “polish throughout”
   with no screen or topic named.
 - Putting Settings layout under **Integrations** just because a row mentions
   Basecamp.
-- Bold lead-ins under **Fixes & Polish**, or lead-ins that only restate the body.
 
 Optional release summary: a leading `> …` blockquote under `## vX.Y.Z` is
 allowed. Store automation uses the author-written update intro line instead.
@@ -180,7 +183,7 @@ allowed. Store automation uses the author-written update intro line instead.
 | **Microsoft Store** | Untagged + `[windows]` |
 | **Mac App Store** | Untagged + `[macos]` |
 | **Linux** | Script supports `--platform linux` (untagged + `[linux]`) when needed |
-| **Platform-specific store text** | Platform tags removed; bold lead-ins kept as plain text (no `*` / other markdown) |
+| **Platform-specific store text** | Platform tags removed; plain sentences (no `*` / other markdown) |
 
 ### Update intro line (required in `changelog.md`)
 
@@ -214,10 +217,10 @@ Hi folks,
 This update comes with some design improvements and under-the-hood improvements.
 
 Branding
-- A proper welcome to Digital Habits. Existing users upgrading from ReDD To-Do…
+- Existing users upgrading from ReDD To-Do now get a one-time announcement…
 
 Integrations
-- More reliable Basecamp sync. Connecting and syncing Basecamp stays stable…
+- Connecting and syncing Basecamp stays more stable, including when you have many projects or large lists.
 
 Fixes & Polish
 - The design of the Settings screen has been improved.
@@ -234,8 +237,7 @@ Rules for that body:
 - No blank line between a heading and its first bullet
 - No blank line between `Cheers,` and the signature
 - Empty sections omitted; **Internal** omitted
-- Product sections keep the lead-in as plain text after stripping `**`
-- **Fixes & Polish** bullets stay plain sentences
+- Bullets are plain sentences (no bold lead-ins in the source changelog)
 
 When several versions are combined into one submission:
 
@@ -258,23 +260,19 @@ This update comes with some useful new features, design improvements, and under-
 
 ### Branding
 
-- **digitalhabits.org in About.** About and Help links point to the Centre for
-  Digital Habits site.
+- About and Help links point to the Centre for Digital Habits site.
 
 ### Tasks & Focus Mode
 
-- **Clearer Done section.** The Done list uses a chevron that shows whether it
-  is expanded or collapsed.
+- The Done list uses a chevron that shows whether it is expanded or collapsed.
 
 ### Integrations
 
-- **More reliable Basecamp sync.** Syncing large Basecamp lists is less likely
-  to fail when the service is busy.
+- Syncing large Basecamp lists is less likely to fail when the service is busy.
 
 ### Performance
 
-- [macos] **Reminders stays responsive.** Connecting and syncing Reminders no
-  longer freezes the app.
+- [macos] Connecting and syncing Reminders no longer freezes the app.
 
 ### Fixes & Polish
 
@@ -282,8 +280,7 @@ This update comes with some useful new features, design improvements, and under-
 
 ### Internal
 
-- **Docs and links.** Updated documentation and links to the current
-  repository and product names.
+- Updated documentation and links to the current repository and product names.
 ```
 
 ---
@@ -293,8 +290,7 @@ This update comes with some useful new features, design improvements, and under-
 - [ ] Update intro line under `## vX.Y.Z` — only the parts that apply; **new features** only for genuinely new capabilities
 - [ ] Only approved headings; empty ones omitted
 - [ ] Most specific heading used; **Internal** only when truly invisible
-- [ ] Platform tags only where needed (`[macos]` / `[windows]` / `[linux]`); no `BY PLATFORM` nesting
-- [ ] Bold lead-in + plain sentence(s) for product sections; **Fixes & Polish** uses plain sentences only
-- [ ] Related UI tweaks on one screen are one screen-level bullet; behavioural changes stay specific
+- [ ] Platform tags only where needed (`[macos]` / `[windows]` / `[linux]`); no `BY PLATFORM` nesting; tags checked against app architecture (README / platform docs)
+- [ ] Plain sentences only — no bold lead-ins; related UI tweaks on one screen are one screen-level bullet
 - [ ] Product terminology matches the app
 - [ ] Entries are already fit for public release notes
