@@ -222,7 +222,7 @@ Integrations
 Fixes & Polish
 - The design of the Settings screen has been improved.
 
-Remember that the app is open source -- keep your feedback and suggestions coming at https://github.com/ulyngs/digital-habits-to-do
+Remember that the app is open source — keep your feedback and suggestions coming at https://github.com/ulyngs/digital-habits-to-do
 
 Cheers,
 Ulrik & all of us at Centre for Digital Habits
