@@ -740,6 +740,141 @@ body.is-reordering * {
     color: var(--text-primary);
 }
 
+/* Pull-to-reveal list search (lists + favourites) */
+.list-search {
+    flex-shrink: 0;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    padding: 0 24px;
+    pointer-events: none;
+    transition: max-height 0.2s ease, opacity 0.18s ease, padding 0.2s ease;
+}
+
+.list-search.revealed {
+    max-height: 52px;
+    opacity: 1;
+    padding: 10px 24px 0 24px;
+    pointer-events: auto;
+}
+
+.list-search.revealed.has-tabs {
+    max-height: 96px;
+}
+
+.list-search-inner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-subtle);
+}
+
+.list-search-icon {
+    flex-shrink: 0;
+    color: var(--text-tertiary);
+}
+
+.list-search-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 13px;
+    line-height: 1.3;
+    padding: 0;
+    font-family: inherit;
+}
+
+.list-search-input::placeholder {
+    color: var(--text-tertiary);
+}
+
+.list-search-esc {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text-tertiary);
+    background: var(--modal-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 2px 5px;
+    line-height: 1.2;
+}
+
+.list-search-empty {
+    text-align: center;
+    color: var(--text-tertiary, #666);
+    padding: 20px;
+}
+
+.list-search-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-shrink: 0;
+    margin-top: 6px;
+    padding: 1px 0 2px;
+    scrollbar-width: thin;
+}
+
+.list-search-tabs.hidden {
+    display: none;
+}
+
+.list-search-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 160px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.2;
+    padding: 5px 8px;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: inherit;
+    flex-shrink: 0;
+}
+
+.list-search-tab:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.list-search-tab.active {
+    background: var(--active-bg);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+.list-search-tab-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.list-search-tab-count {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+}
+
+.list-search-tab.active .list-search-tab-count {
+    color: var(--text-secondary);
+}
+
 /* Tasks Container */
 .tasks-container {
     flex: 1 1 auto;
@@ -747,6 +882,10 @@ body.is-reordering * {
     overflow-y: auto;
     position: relative;
     min-height: 0;
+}
+
+.list-search.revealed + .tasks-container {
+    padding-top: 10px;
 }
 
 /* Task Item */

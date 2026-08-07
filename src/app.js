@@ -347,6 +347,8 @@ const translations = {
         switchTaskSearchPlaceholder: 'Switch to another task...',
         switchTaskNoMatches: 'No matching tasks',
         switchTaskEmptyList: 'No open tasks in this list',
+        listSearchPlaceholder: 'Search tasks...',
+        listSearchNoMatches: 'No matching tasks',
         // Time
         minutes: 'm',
         rebrandOnboardingTitleHtml:
@@ -436,6 +438,8 @@ const translations = {
         switchTaskSearchPlaceholder: 'Skift til en anden opgave...',
         switchTaskNoMatches: 'Ingen matchende opgaver',
         switchTaskEmptyList: 'Ingen åbne opgaver i denne liste',
+        listSearchPlaceholder: 'Søg i opgaver...',
+        listSearchNoMatches: 'Ingen matchende opgaver',
         // Time
         minutes: 'm',
         rebrandOnboardingTitleHtml:
@@ -509,6 +513,9 @@ let remindersConfig = {
 const groupsContainer = document.querySelector('.groups');
 const tabsContainer = document.querySelector('.tabs');
 const tasksContainer = document.querySelector('.tasks-container');
+const listSearchEl = document.getElementById('list-search');
+const listSearchInput = document.getElementById('list-search-input');
+const listSearchTabs = document.getElementById('list-search-tabs');
 const newTaskInput = document.getElementById('new-task-input');
 const addTaskBtn = document.getElementById('add-task-btn');
 const addTabBtn = document.getElementById('add-tab-btn');
@@ -516,6 +523,12 @@ const durationInputContainer = document.getElementById('duration-input-container
 const taskDurationInput = document.getElementById('task-duration-input');
 const settingsBtn = document.getElementById('settings-btn');
 const syncBtn = document.getElementById('sync-btn');
+
+// Pull-to-reveal search for lists + favourites views
+let listSearchQuery = '';
+let listSearchRevealed = false;
+let listSearchTouchStartY = null;
+let listSearchSelectedTabId = null;
 
 function snapDurationToStep(value, direction, step = 5) {
     const n = Number.isFinite(value) ? value : 0;
@@ -820,6 +833,10 @@ function applyTranslations() {
 
     if (focusTaskSwitchSearchInput) {
         focusTaskSwitchSearchInput.placeholder = t('switchTaskSearchPlaceholder');
+    }
+
+    if (listSearchInput) {
+        listSearchInput.placeholder = t('listSearchPlaceholder');
     }
 
     // Done section
@@ -3306,6 +3323,8 @@ function switchView(viewName) {
         viewFavBtn.classList.remove('active');
         if (viewPlanBtn) viewPlanBtn.classList.add('active');
 
+        hideListSearch({ clearQuery: true });
+
         // Hide the entire centered content column (and its inner pieces).
         if (contentColumn) contentColumn.style.display = 'none';
         if (groupsContainerMain) groupsContainerMain.style.display = 'none';
@@ -3655,39 +3674,279 @@ function toggleTaskFavourite(taskId) {
     }
 }
 
+function taskMatchesListSearch(task, query) {
+    if (!query) return true;
+    return (task.text || '').toLowerCase().includes(query);
+}
+
+/** Cross-list search groups: current list first (if it has hits), then remaining lists in tab order.
+ *  Only incomplete tasks are searchable — completed/done items are excluded. */
+function getListSearchGroups(query) {
+    const groupsInTabOrder = [];
+
+    Object.keys(tabs).forEach((tabId) => {
+        const tab = tabs[tabId];
+        if (!tab || !Array.isArray(tab.tasks)) return;
+
+        const incomplete = tab.tasks.filter(
+            (task) => !task.completed && taskMatchesListSearch(task, query)
+        );
+
+        if (incomplete.length === 0) return;
+
+        groupsInTabOrder.push({
+            tabId,
+            tabName: tab.name || 'List',
+            incomplete,
+            completed: [],
+            hitCount: incomplete.length,
+        });
+    });
+
+    const preferredTabId = currentView === 'lists' ? currentTabId : listSearchSelectedTabId;
+    const preferredIdx = groupsInTabOrder.findIndex((group) => group.tabId === preferredTabId);
+    if (preferredIdx > 0) {
+        const [preferred] = groupsInTabOrder.splice(preferredIdx, 1);
+        groupsInTabOrder.unshift(preferred);
+    }
+
+    return groupsInTabOrder;
+}
+
+function clearListSearchTabs() {
+    if (!listSearchTabs) return;
+    listSearchTabs.innerHTML = '';
+    listSearchTabs.classList.add('hidden');
+    listSearchEl?.classList.remove('has-tabs');
+}
+
+function renderListSearchTabs(groups) {
+    if (!listSearchTabs || !listSearchEl) return;
+
+    const showTabs = groups.length > 1;
+    listSearchTabs.classList.toggle('hidden', !showTabs);
+    listSearchEl.classList.toggle('has-tabs', showTabs);
+    listSearchTabs.innerHTML = '';
+    if (!showTabs) return;
+
+    groups.forEach((group) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'list-search-tab';
+        btn.setAttribute('role', 'tab');
+        btn.setAttribute('aria-selected', group.tabId === listSearchSelectedTabId ? 'true' : 'false');
+        if (group.tabId === listSearchSelectedTabId) {
+            btn.classList.add('active');
+        }
+        btn.title = group.tabName;
+
+        const nameEl = document.createElement('span');
+        nameEl.className = 'list-search-tab-name';
+        nameEl.textContent = group.tabName;
+
+        const countEl = document.createElement('span');
+        countEl.className = 'list-search-tab-count';
+        countEl.textContent = String(group.hitCount);
+
+        btn.appendChild(nameEl);
+        btn.appendChild(countEl);
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (listSearchSelectedTabId === group.tabId) return;
+            listSearchSelectedTabId = group.tabId;
+            renderTasks();
+            listSearchInput?.focus();
+        });
+        listSearchTabs.appendChild(btn);
+    });
+}
+
+function revealListSearch({ focus = true } = {}) {
+    if (!listSearchEl || !listSearchInput) return;
+    if (currentView !== 'lists' && currentView !== 'favourites') return;
+
+    listSearchRevealed = true;
+    listSearchEl.classList.add('revealed');
+    listSearchEl.setAttribute('aria-hidden', 'false');
+    listSearchInput.placeholder = t('listSearchPlaceholder');
+
+    if (focus) {
+        requestAnimationFrame(() => {
+            listSearchInput.focus();
+            const len = listSearchInput.value.length;
+            listSearchInput.setSelectionRange(len, len);
+        });
+    }
+}
+
+function hideListSearch({ clearQuery = false } = {}) {
+    if (!listSearchEl || !listSearchInput) return;
+
+    if (clearQuery) {
+        listSearchQuery = '';
+        listSearchInput.value = '';
+        listSearchSelectedTabId = null;
+    }
+
+    listSearchRevealed = false;
+    listSearchEl.classList.remove('revealed');
+    listSearchEl.classList.remove('has-tabs');
+    listSearchEl.setAttribute('aria-hidden', 'true');
+    clearListSearchTabs();
+
+    if (document.activeElement === listSearchInput) {
+        listSearchInput.blur();
+    }
+}
+
+function setupListSearch() {
+    if (!listSearchEl || !listSearchInput || !tasksContainer) return;
+    if (listSearchEl.dataset.bound === '1') return;
+    listSearchEl.dataset.bound = '1';
+
+    listSearchInput.addEventListener('input', () => {
+        listSearchQuery = listSearchInput.value;
+        renderTasks();
+    });
+
+    // Trackpad / mouse wheel: pull past the top of the list to reveal search.
+    tasksContainer.addEventListener(
+        'wheel',
+        (e) => {
+            if (currentView !== 'lists' && currentView !== 'favourites') return;
+            if (listSearchRevealed) return;
+            if (tasksContainer.scrollTop > 0) return;
+            if (e.deltaY >= 0) return;
+            e.preventDefault();
+            revealListSearch({ focus: true });
+        },
+        { passive: false }
+    );
+
+    // Touch: pull down at the top of the list.
+    tasksContainer.addEventListener(
+        'touchstart',
+        (e) => {
+            if (currentView !== 'lists' && currentView !== 'favourites') return;
+            if (listSearchRevealed) return;
+            listSearchTouchStartY = tasksContainer.scrollTop <= 0 ? e.touches[0].clientY : null;
+        },
+        { passive: true }
+    );
+
+    tasksContainer.addEventListener(
+        'touchmove',
+        (e) => {
+            if (listSearchTouchStartY == null || listSearchRevealed) return;
+            if (tasksContainer.scrollTop > 0) {
+                listSearchTouchStartY = null;
+                return;
+            }
+            const dy = e.touches[0].clientY - listSearchTouchStartY;
+            if (dy > 36) {
+                listSearchTouchStartY = null;
+                revealListSearch({ focus: true });
+            }
+        },
+        { passive: true }
+    );
+
+    tasksContainer.addEventListener(
+        'touchend',
+        () => {
+            listSearchTouchStartY = null;
+        },
+        { passive: true }
+    );
+
+    document.addEventListener('keydown', (e) => {
+        const inListView = currentView === 'lists' || currentView === 'favourites';
+        if (!inListView) return;
+
+        // Cmd/Ctrl+F opens search (desktop discoverability for pull-to-reveal).
+        if ((e.metaKey || e.ctrlKey) && (e.key === 'f' || e.key === 'F')) {
+            // Don't steal browser find when focus is in a rich text / notes editor.
+            const active = document.activeElement;
+            if (active && (active.isContentEditable || active.closest?.('.ql-editor'))) return;
+            e.preventDefault();
+            revealListSearch({ focus: true });
+            return;
+        }
+
+        if (e.key !== 'Escape' || !listSearchRevealed) return;
+        // Let open modals / menus own Escape.
+        if (document.querySelector('.modal-overlay:not(.hidden)')) return;
+        if (document.querySelector('.task-menu:not(.hidden)')) return;
+
+        if ((listSearchQuery || '').length > 0) {
+            listSearchQuery = '';
+            listSearchInput.value = '';
+            listSearchSelectedTabId = null;
+            renderTasks();
+            listSearchInput.focus();
+        } else {
+            hideListSearch();
+        }
+        e.preventDefault();
+    });
+}
+
 function renderTasks() {
     let tasksToRender = [];
     let completedTasksToRender = [];
+    const searchQuery = (listSearchQuery || '').trim().toLowerCase();
+    const isSearching = searchQuery.length > 0;
 
-    if (currentView === 'favourites') {
-        const allFavs = getAllFavouriteTasks();
-        tasksToRender = allFavs.filter(task => !task.completed);
-        completedTasksToRender = allFavs.filter(task => task.completed);
-
-        tasksContainer.innerHTML = '';
-        doneTasksContainer.innerHTML = '';
-
-        if (tasksToRender.length === 0 && completedTasksToRender.length === 0) {
-            tasksContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 40px;">No favourited tasks yet. Click the heart on a task to favourite it! ❤️</div>';
-            doneContainer.style.display = 'none';
-            return;
+    if (isSearching) {
+        // Search across every list; tabs show per-list hit counts (focus-switch style).
+        const groups = getListSearchGroups(searchQuery);
+        if (
+            !listSearchSelectedTabId ||
+            !groups.some((group) => group.tabId === listSearchSelectedTabId)
+        ) {
+            listSearchSelectedTabId = groups[0]?.tabId || null;
         }
+        renderListSearchTabs(groups);
+
+        const selectedGroup =
+            groups.find((group) => group.tabId === listSearchSelectedTabId) || groups[0] || null;
+        tasksToRender = selectedGroup ? selectedGroup.incomplete.slice() : [];
+        completedTasksToRender = [];
     } else {
-        if (!currentTabId) {
-            tasksContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 40px;">No tab selected</div>';
-            doneContainer.style.display = 'none';
-            return;
-        }
+        clearListSearchTabs();
+        listSearchSelectedTabId = null;
 
-        const currentTab = tabs[currentTabId];
-        if (!currentTab.tasks.length) {
-            tasksContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 40px;">No tasks yet. Add one below!</div>';
-            doneContainer.style.display = 'none';
-            return;
-        }
+        if (currentView === 'favourites') {
+            const allFavs = getAllFavouriteTasks();
+            tasksToRender = allFavs.filter(task => !task.completed);
+            completedTasksToRender = allFavs.filter(task => task.completed);
 
-        tasksToRender = currentTab.tasks.filter(task => !task.completed);
-        completedTasksToRender = currentTab.tasks.filter(task => task.completed);
+            tasksContainer.innerHTML = '';
+            doneTasksContainer.innerHTML = '';
+
+            if (tasksToRender.length === 0 && completedTasksToRender.length === 0) {
+                tasksContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 40px;">No favourited tasks yet. Click the heart on a task to favourite it! ❤️</div>';
+                doneContainer.style.display = 'none';
+                return;
+            }
+        } else {
+            if (!currentTabId) {
+                tasksContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 40px;">No tab selected</div>';
+                doneContainer.style.display = 'none';
+                return;
+            }
+
+            const currentTab = tabs[currentTabId];
+            if (!currentTab.tasks.length) {
+                tasksContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 40px;">No tasks yet. Add one below!</div>';
+                doneContainer.style.display = 'none';
+                return;
+            }
+
+            tasksToRender = currentTab.tasks.filter(task => !task.completed);
+            completedTasksToRender = currentTab.tasks.filter(task => task.completed);
+        }
     }
 
     // Separate completed and incomplete tasks
@@ -3703,21 +3962,27 @@ function renderTasks() {
     // Render incomplete tasks in main tasks container
     tasksContainer.innerHTML = '';
     if (incompleteTasks.length === 0) {
-        tasksContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">All tasks completed! 🎉</div>';
+        if (isSearching && completedTasks.length === 0) {
+            tasksContainer.innerHTML = `<div class="list-search-empty">${t('listSearchNoMatches')}</div>`;
+        } else if (!isSearching) {
+            tasksContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">All tasks completed! 🎉</div>';
+        }
     } else {
         incompleteTasks.forEach(task => {
             const taskElement = createTaskElement(task);
             tasksContainer.appendChild(taskElement);
         });
 
-        // Add invisible drag target at bottom
-        const bottomDragTarget = document.createElement('div');
-        bottomDragTarget.className = 'bottom-drag-target';
-        bottomDragTarget.dataset.position = 'bottom';
-        bottomDragTarget.addEventListener('dragover', handleBottomDragOver);
-        bottomDragTarget.addEventListener('dragleave', handleBottomDragLeave);
-        bottomDragTarget.addEventListener('drop', handleBottomDrop);
-        tasksContainer.appendChild(bottomDragTarget);
+        // Add invisible drag target at bottom (disabled while filtering so order stays stable)
+        if (!isSearching) {
+            const bottomDragTarget = document.createElement('div');
+            bottomDragTarget.className = 'bottom-drag-target';
+            bottomDragTarget.dataset.position = 'bottom';
+            bottomDragTarget.addEventListener('dragover', handleBottomDragOver);
+            bottomDragTarget.addEventListener('dragleave', handleBottomDragLeave);
+            bottomDragTarget.addEventListener('drop', handleBottomDrop);
+            tasksContainer.appendChild(bottomDragTarget);
+        }
     }
 
     // Render completed tasks in done container
@@ -3733,8 +3998,8 @@ function renderTasks() {
         doneContainer.style.display = 'block';
 
         // Show "Delete all" button if there's more than one completed task
-        // Hide in favourites view to avoid ambiguity about which list is being cleared
-        if (completedTasks.length > 1 && currentView !== 'favourites') {
+        // Hide in favourites / while searching to avoid clearing the wrong list
+        if (completedTasks.length > 1 && currentView !== 'favourites' && !isSearching) {
             deleteAllBtn.classList.remove('hidden');
         } else {
             deleteAllBtn.classList.add('hidden');
@@ -5132,6 +5397,9 @@ function setupEventListeners() {
     window.addEventListener('mouseup', handleTabPointerUp);
     window.addEventListener('mousemove', handleGroupPointerMove);
     window.addEventListener('mouseup', handleGroupPointerUp);
+
+    // Pull-to-reveal search for lists + favourites
+    setupListSearch();
 
     // Task events for active tasks
     tasksContainer.addEventListener('mousedown', handleTaskPointerDown);
@@ -6716,6 +6984,8 @@ function handleGroupPointerUp() {
 function handleTaskPointerDown(e) {
     if (e.button !== 0) return;
     if (currentView !== 'lists' && currentView !== 'favourites') return;
+    // Don't reorder while a search filter is active — the visible order is not the list order.
+    if ((listSearchQuery || '').trim()) return;
     if (isPointerDragInteractiveTarget(e.target)) return;
 
     const taskEl = e.target.closest('.task-item');
