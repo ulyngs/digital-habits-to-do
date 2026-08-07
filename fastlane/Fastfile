@@ -2,8 +2,9 @@
 #
 # Uploads the .pkg built by scripts/build-mas-package.js (npm run build:mas),
 # stamps the macOS "What's new" (from scripts/changelog-to-store-whats-new.js
-# --platform macos), and submits for review with automatic release after
-# approval — the App Store Connect equivalent of scripts/submit-microsoft-store.ps1.
+# --platform macos; see changelog-style.md), and submits for review with
+# automatic release after approval — the App Store Connect equivalent of
+# scripts/submit-microsoft-store.ps1.
 #
 # Auth: App Store Connect API key via env vars (see docs/mac-app-store-ci.md):
 #   APP_STORE_CONNECT_API_KEY_ID          Key ID

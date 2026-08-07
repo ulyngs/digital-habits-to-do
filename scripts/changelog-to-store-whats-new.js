@@ -1,50 +1,27 @@
 #!/usr/bin/env node
 /**
- * Build store "What's new" plain text from changelog.md.
+ * Build store "What's new" from changelog.md.
  *
- * User-facing Store notes (App Store–style): fixed friendly intro, bullet list
- * of product changes (no blank line after the intro line), then a fixed
- * sign-off. Skips Version lines, empty platform scaffolding, and
- * release-engineering notes (CI / Store submit / …).
+ * Copies the version's "This update comes with…" line, then non-Internal
+ * sections (headings + bullets) filtered by platform tags. Strips markdown
+ * and tags. Legacy ### BY PLATFORM nesting still works.
  *
- * Usage:
- *   node scripts/changelog-to-store-whats-new.js <version> --platform windows --out whats_new.txt
- *   node scripts/changelog-to-store-whats-new.js <version> --platform macos --out whats_new_mas.txt
- *   node scripts/changelog-to-store-whats-new.js <version> --platform linux --out whats_new_linux.txt
- *
- * Platform filters:
- *   windows — shared bullets + #### Windows (or ##### Windows)
- *   macos   — shared bullets + #### macOS
- *   linux   — shared bullets + #### Linux
- *
- * Shared = bullets under the version section before any platform heading, and
- * under thematic `###` sections that are not platform names (e.g. FOCUS MODE).
- * There is no #### DESKTOP layer — Digital Habits: To-Do is desktop-only; shared notes
- * live in the main version body.
- *
- * Character limits: Partner Center 10,000; App Store Connect "What's New" 4,000.
+ *   node scripts/changelog-to-store-whats-new.js <version> --platform windows|macos|linux [--empty-ok] [--out file]
  */
 
 const fs = require('fs');
 const path = require('path');
 
-const PLATFORMS = {
-  windows: { maxChars: 10000 },
-  macos: { maxChars: 4000 },
-  mac: { maxChars: 4000 }, // alias
-  linux: { maxChars: 10000 },
+const GITHUB_REPO_URL = 'https://github.com/ulyngs/digital-habits-to-do';
+const DEFAULT_INTRO = 'This update comes with some helpful improvements.';
+const PLATFORM_TAG_RE = /^\[(macos|windows|linux)\]\s*/i;
+
+const MAX_CHARS = {
+  windows: 10000,
+  macos: 4000,
+  mac: 4000,
+  linux: 10000,
 };
-
-const INTRO = `Hi folks,
-
-This update comes with some helpful improvements!`;
-
-const SIGNOFF = `Please keep suggesting improvements to the app - you can do so at https://github.com/ulyngs/digital-habits-to-do/issues
-
-We hope you're enjoying Digital Habits: To-Do!
-
-- Ulrik, Tiago, & the Centre for Digital Habits Team
-(digitalhabits.org)`;
 
 function usage() {
   console.error(
@@ -54,7 +31,7 @@ function usage() {
 }
 
 function normalizePlatform(raw) {
-  const p = (raw || '').toLowerCase();
+  const p = (raw || '').toLowerCase().trim();
   if (p === 'mac' || p === 'macos' || p === 'osx') return 'macos';
   if (p === 'win' || p === 'windows') return 'windows';
   if (p === 'linux') return 'linux';
@@ -63,13 +40,14 @@ function normalizePlatform(raw) {
 
 function extractSection(changelog, version) {
   const tag = version.startsWith('v') ? version : `v${version}`;
+  const headingRe = new RegExp(`^## ${tag.replace(/\./g, '\\.')}\\s*$`);
   const lines = changelog.split(/\r?\n/);
   let found = false;
   const section = [];
   for (const line of lines) {
-    if (/^## v\d/.test(line)) {
+    if (/^##\s/.test(line)) {
       if (found) break;
-      if (line === `## ${tag}` || line.startsWith(`## ${tag} `)) {
+      if (headingRe.test(line)) {
         found = true;
         continue;
       }
@@ -87,150 +65,179 @@ function stripMdInline(text) {
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/`([^`]+)`/g, '$1')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\*([^*\s][^*]*?)\*/g, '$1')
     .trim();
 }
 
-/** True for bullets that belong in the engineering changelog, not Store notes. */
-function isInternalBullet(plain) {
-  if (/^version:\s*/i.test(plain)) return true;
-  if (
-    /\b(store submit|partner center|github release|github actions|msstore|release workflow|mac app store submission|app store connect)\b/i.test(
-      plain,
-    )
-  ) {
-    return true;
+function extractUpdateIntro(sectionLines) {
+  const parts = [];
+  for (const raw of sectionLines) {
+    const line = raw.replace(/\s+$/, '');
+    if (!line.trim()) {
+      if (parts.length) break;
+      continue;
+    }
+    if (/^#{3,6}\s+/.test(line) || /^\s*[-*]\s+/.test(line)) break;
+    if (/^>\s*/.test(line)) continue;
+    parts.push(stripMdInline(line));
   }
-  if (/\bci\b.*\b(submit|publish|release)\b/i.test(plain)) return true;
-  return false;
+  return parts.join(' ').trim() || DEFAULT_INTRO;
 }
 
-/**
- * Format a changelog bullet for Store notes.
- * `**Title.** Body` → `- "Title": Body`
- */
-function formatStoreBullet(rawBody) {
-  const plain = stripMdInline(rawBody);
-  if (!plain || isInternalBullet(plain)) return null;
-
-  const titled = plain.match(/^(.+?)\.\s+(.+)$/s);
-  if (titled) {
-    const title = titled[1].trim();
-    const body = titled[2].trim();
-    if (title && body) return `- "${title}": ${body}`;
+function takePlatformTags(rawBody) {
+  let rest = String(rawBody || '').trim();
+  const tags = [];
+  let match = rest.match(PLATFORM_TAG_RE);
+  while (match) {
+    tags.push(match[1].toLowerCase());
+    rest = rest.slice(match[0].length).trim();
+    match = rest.match(PLATFORM_TAG_RE);
   }
-  return `- ${plain}`;
+  return { tags, rest };
 }
 
+function tagsMatchPlatform(tags, platform) {
+  if (!tags.length) return true;
+  return tags.includes(platform);
+}
+
+function isInternalHeading(title) {
+  return /^internal\b/i.test(String(title || '').trim());
+}
+
+/** Legacy #### Windows / #### macOS / #### Linux under BY PLATFORM. */
 function platformFromTitle(title) {
-  if (/^windows$|\bwindows\b/i.test(title) && !/mac|linux/i.test(title)) return 'windows';
-  if (/^macos$|^mac$|\bmacos\b/i.test(title)) return 'macos';
-  if (/^linux$|\blinux\b/i.test(title)) return 'linux';
+  const t = title.trim();
+  if (/^windows$|\bwindows\b/i.test(t) && !/mac|linux/i.test(t)) return 'windows';
+  if (/^macos$|^mac$|\bmacos\b/i.test(t)) return 'macos';
+  if (/^linux$|\blinux\b/i.test(t)) return 'linux';
   return null;
 }
 
-/**
- * Track which platform the current changelog subsection applies to.
- *
- *   (top of ## vX.Y.Z / thematic ### FOCUS …)  → shared
- *   ### BY PLATFORM                             → by-platform scaffold
- *   #### Windows / #### macOS / #### Linux      → that platform only
- *   ##### Windows / … (if nested)               → that platform only
- */
 function scopeForHeading(level, title, current) {
   const platform = platformFromTitle(title);
   if (platform) return platform;
-
   if (level === 3) {
+    if (isInternalHeading(title)) return 'internal';
     return /by platform/i.test(title) ? 'by-platform' : 'shared';
   }
-  // Non-platform h4+ under BY PLATFORM: stay in scaffold (ignore bullets)
-  if (current === 'by-platform') return 'by-platform';
+  if (current === 'internal' || current === 'by-platform') return current;
   return 'shared';
 }
 
-function scopeMatchesPlatform(scope, platform) {
+function legacyScopeMatchesPlatform(scope, platform) {
   if (scope === 'shared') return true;
-  if (scope === 'by-platform') return false;
+  if (scope === 'internal' || scope === 'by-platform') return false;
   return scope === platform;
 }
 
-function collectStoreBullets(sectionLines, platform) {
-  const bullets = [];
-  let scope = 'shared';
-  for (let i = 0; i < sectionLines.length; i += 1) {
-    const raw = sectionLines[i];
-    const line = raw.replace(/\s+$/, '');
+function readContinuedBullet(lines, startIndex, first) {
+  let body = first;
+  let i = startIndex;
+  while (i + 1 < lines.length) {
+    const next = lines[i + 1];
+    if (
+      /^\s{2,}\S/.test(next) &&
+      !/^\s*[-*]\s+/.test(next) &&
+      !/^#{2,6}\s+/.test(next.trim())
+    ) {
+      body = `${body} ${next.trim()}`;
+      i += 1;
+      continue;
+    }
+    break;
+  }
+  return { body, index: i };
+}
 
-    // Ignore leftover blockquotes from older entries — Store intro is fixed.
+function collectStoreSections(sectionLines, platform) {
+  const sections = [];
+  let current = null;
+  let scope = 'shared';
+
+  const startSection = (heading) => {
+    current = { heading, bullets: [] };
+    sections.push(current);
+  };
+
+  for (let i = 0; i < sectionLines.length; i += 1) {
+    const line = sectionLines[i].replace(/\s+$/, '');
     if (/^>\s*/.test(line)) continue;
 
     const heading = line.match(/^(#{3,6})\s+(.*)$/);
     if (heading) {
-      scope = scopeForHeading(heading[1].length, heading[2], scope);
+      const level = heading[1].length;
+      const title = heading[2].trim();
+      scope = scopeForHeading(level, title, scope);
+
+      if (level === 3) {
+        const skip =
+          isInternalHeading(title) ||
+          /by platform/i.test(title) ||
+          /^release$/i.test(title);
+        if (skip) current = null;
+        else startSection(title);
+      } else if (legacyScopeMatchesPlatform(scope, platform)) {
+        startSection(title);
+      } else {
+        current = null;
+      }
       continue;
     }
     if (/^#{2,6}\s+/.test(line)) continue;
 
-    if (!scopeMatchesPlatform(scope, platform)) continue;
-
     const bullet = line.match(/^\s*[-*]\s+(.*)$/);
     if (!bullet) continue;
 
-    let body = bullet[1];
-    while (i + 1 < sectionLines.length) {
-      const next = sectionLines[i + 1];
-      if (/^\s{2,}\S/.test(next) && !/^\s*[-*]\s+/.test(next) && !/^#{2,6}\s+/.test(next.trim())) {
-        body = `${body} ${next.trim()}`;
-        i += 1;
-        continue;
-      }
-      break;
+    const cont = readContinuedBullet(sectionLines, i, bullet[1]);
+    i = cont.index;
+    if (scope === 'internal') continue;
+
+    const { tags, rest } = takePlatformTags(cont.body);
+    if (tags.length) {
+      if (!tagsMatchPlatform(tags, platform)) continue;
+    } else if (!legacyScopeMatchesPlatform(scope, platform)) {
+      continue;
     }
 
-    const formatted = formatStoreBullet(body);
-    if (formatted) bullets.push(formatted);
+    const plain = stripMdInline(rest);
+    if (!plain || /^version:\s*/i.test(plain)) continue;
+
+    if (!current) startSection(null);
+    current.bullets.push(`- ${plain}`);
   }
-  return bullets;
+
+  return sections.filter((s) => s.bullets.length > 0);
 }
 
-function buildWhatsNew(bullets, maxChars, emptyOk) {
-  if (!bullets.length) {
+function formatSectionBlocks(sections) {
+  return sections
+    .map((s) => [s.heading, ...s.bullets].filter(Boolean).join('\n'))
+    .join('\n\n');
+}
+
+function buildWhatsNew(updateIntro, sections, maxChars, emptyOk) {
+  if (!sections.length) {
     if (emptyOk) return '';
     throw new Error(
-      'No user-facing changelog bullets for Store notes (only Version / other-platform / internal lines?).',
+      'No user-facing changelog bullets for Store notes (only other-platform / Internal lines?).',
     );
   }
 
-  const intro = INTRO;
-  const signoff = SIGNOFF;
-  // No blank line between intro and first bullet; blank line before sign-off.
-  const afterIntro = '\n';
-  const beforeSignoff = '\n\n';
-  const fixedLen = intro.length + signoff.length + afterIntro.length + beforeSignoff.length;
+  const head = `Hi folks,\n\n${updateIntro}\n\n`;
+  const foot = `\n\nRemember that the app is open source — keep your feedback and suggestions coming at ${GITHUB_REPO_URL}\n\nCheers,\nUlrik & all of us at Centre for Digital Habits`;
+  let list = formatSectionBlocks(sections);
+  const full = `${head}${list}${foot}`;
+  if (full.length <= maxChars) return full.trim();
 
-  let list = bullets.join('\n');
-  if (fixedLen + list.length > maxChars) {
-    const budget = maxChars - fixedLen - '\n…'.length;
-    const kept = [];
-    let used = 0;
-    for (const b of bullets) {
-      const add = (kept.length ? 1 : 0) + b.length;
-      if (used + add > budget) break;
-      kept.push(b);
-      used += add;
-    }
-    if (!kept.length) {
-      kept.push(`${bullets[0].slice(0, Math.max(40, budget - 1))}…`);
-    }
-    list = `${kept.join('\n')}\n…`;
-  }
-
-  return `${intro}${afterIntro}${list}${beforeSignoff}${signoff}`.trim();
+  const budget = maxChars - head.length - foot.length - 1;
+  list = `${list.slice(0, Math.max(40, budget - 1)).replace(/\s+\S*$/, '')}…`;
+  return `${head}${list}${foot}`.trim();
 }
 
 function main() {
   const args = process.argv.slice(2);
-  if (args.length < 1) usage();
+  if (!args.length) usage();
 
   let outPath = null;
   let platform = null;
@@ -252,16 +259,17 @@ function main() {
 
   // Default to windows so Partner Center never silently picks up macOS/Linux bullets.
   if (!platform) platform = 'windows';
-
   const version = positional[0];
   if (!version) usage();
-  const changelogPath = path.resolve(positional[1] || 'changelog.md');
-  const maxChars = PLATFORMS[platform].maxChars;
 
-  const markdown = fs.readFileSync(changelogPath, 'utf8');
-  const sectionLines = extractSection(markdown, version);
-  const bullets = collectStoreBullets(sectionLines, platform);
-  const text = buildWhatsNew(bullets, maxChars, emptyOk);
+  const changelogPath = path.resolve(positional[1] || 'changelog.md');
+  const sectionLines = extractSection(fs.readFileSync(changelogPath, 'utf8'), version);
+  const text = buildWhatsNew(
+    extractUpdateIntro(sectionLines),
+    collectStoreSections(sectionLines, platform),
+    MAX_CHARS[platform],
+    emptyOk,
+  );
 
   if (outPath) {
     fs.writeFileSync(outPath, text ? `${text}\n` : '', 'utf8');

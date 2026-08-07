@@ -14,20 +14,18 @@ Local packaging docs (identities, profile, Transporter): [`releasing-mas.md`](re
 ## What goes into macOS "What's new"
 
 [`scripts/changelog-to-store-whats-new.js`](../scripts/changelog-to-store-whats-new.js)
-is run with `--platform macos`. It keeps:
+is run with `--platform macos`. See [`changelog-style.md`](../changelog-style.md)
+for headings and writing rules. It includes:
 
-- Shared bullets (directly under `## vX.Y.Z` or thematic `###` sections such as
-  `### FOCUS MODE`), and
-- Bullets under `#### macOS` (only present when there are mac-only notes).
+- The author-written “This update comes with…” line from `## vX.Y.Z`
+- Non-empty user-facing section headings + bullets (untagged + `[macos]`)
+- Standard Hi folks / open-source / Cheers footer
 
-It drops `#### Windows` / `#### Linux`, `Version:` lines, and
-release-engineering bullets. Output always uses the fixed intro
-(`Hi folks,` / `This update comes with some helpful improvements!`) + bullets +
-sign-off, capped at the App Store's 4,000 character limit — never a custom
-blockquote headline.
+It excludes **Internal**, other-platform tags (`[windows]` / `[linux]`), and
+strips markdown. Legacy `### BY PLATFORM` / `#### macOS` nesting still works
+for older entries. Capped at the App Store's 4,000 character limit.
 
-Other stores use the same script with `--platform windows` (shared +
-`#### Windows`).
+Microsoft Store uses the same script with `--platform windows`.
 
 If a release has **no** macOS-facing bullets (Windows-only release), the
 Publish (Mac App Store) job logs a notice and skips submission instead of

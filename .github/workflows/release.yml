@@ -10,9 +10,9 @@
 #                             same marketing version after a failed MAS run)
 # Tag pushes always create a GitHub Release and submit to both stores.
 #
-# Before shipping: bump version, add ## vX.Y.Z to changelog.md (shared bullets +
-# optional #### Windows / #### macOS / #### Linux — see changelog.md header),
-# commit to main.
+# Before shipping: bump version, add ## vX.Y.Z to changelog.md per
+# changelog-style.md (product headings + optional [macos]/[windows]/[linux]
+# tags), commit to main.
 # Store CI setup: docs/microsoft-store-ci.md, docs/mac-app-store-ci.md
 #
 # ── Windows Store package identity (same as local .env) ──

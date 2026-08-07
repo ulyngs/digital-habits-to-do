@@ -2757,7 +2757,7 @@ function showGroupModal() {
 
     // In group mode, Reminders selection means importing all lists from a list-group/account.
     remindersGroupsForImport = new Map();
-    if (remindersConfig.isConnected) {
+    if (platform === 'darwin' && remindersConfig.isConnected) {
         remindersSelection.classList.remove('hidden');
         if (remindersSelectionLabel) remindersSelectionLabel.textContent = 'Reminders List Group';
         remindersListSelect.innerHTML = '<option value="">Select a list group...</option>';
@@ -4817,6 +4817,10 @@ function setupEventListeners() {
         settingsModal.classList.add('hidden');
     });
 
+    document.getElementById('settings-back-btn')?.addEventListener('click', () => {
+        closeSettingsBtn.click();
+    });
+
     // Info toggle buttons in Settings
     document.querySelectorAll('.info-toggle-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -5265,16 +5269,17 @@ function setupEventListeners() {
         });
     }
 
-    // Handle all external links (http(s) and mailto)
+    // External links: Tauri's shell plugin also opens target=_blank, so we must
+    // stopImmediatePropagation in the capture phase or the URL opens twice.
     document.addEventListener('click', (event) => {
         const anchor = event.target.closest?.('a[href]');
         if (!anchor) return;
-        const href = anchor.href || '';
-        if (href.startsWith('http') || href.startsWith('mailto:')) {
-            event.preventDefault();
-            openExternal(href);
-        }
-    });
+        const href = anchor.getAttribute('href') || '';
+        if (!href.startsWith('http') && !href.startsWith('mailto:')) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        openExternal(anchor.href || href);
+    }, true);
 
     // Close modal or exit fullscreen on Escape key
     document.addEventListener('keydown', (e) => {
@@ -5338,7 +5343,7 @@ function setupEventListeners() {
 
     if (settingsModal) {
         settingsModal.addEventListener('click', (e) => {
-            if (e.target === settingsModal) {
+            if (e.target === settingsModal && !window.matchMedia('(max-width: 718px)').matches) {
                 settingsModal.classList.add('hidden');
             }
         });
@@ -7833,7 +7838,7 @@ function showTabNameModal() {
     }
 
     // Handle Reminders visibility
-    if (remindersConfig.isConnected) {
+    if (platform === 'darwin' && remindersConfig.isConnected) {
         remindersSelection.classList.remove('hidden');
         if (remindersSelectionLabel) remindersSelectionLabel.textContent = 'Reminders List';
         remindersGroupsForImport = new Map();
@@ -7914,8 +7919,8 @@ function showRenameModal(tabId) {
         modalTitle.textContent = 'Edit list';
         createTabBtn.textContent = 'Save';
         tabNameInput.value = tab.name;
-        basecampSelection.classList.remove('hidden'); // allow moving connections
-        remindersSelection.classList.remove('hidden'); // allow moving connections
+        basecampSelection.classList.toggle('hidden', !basecampConfig.isConnected);
+        remindersSelection.classList.toggle('hidden', !(platform === 'darwin' && remindersConfig.isConnected));
         tabNameModal.classList.remove('hidden');
 
         // Select logic for color
