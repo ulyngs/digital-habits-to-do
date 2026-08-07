@@ -39,6 +39,10 @@ $IdentityName = $env:WINDOWS_IDENTITY_NAME
 $Publisher = $env:WINDOWS_PUBLISHER
 $PublisherDisplayName = $env:WINDOWS_PUBLISHER_DISPLAY_NAME
 
+if (-not $PublisherDisplayName) {
+    $PublisherDisplayName = "Centre for Digital Habits"
+}
+
 if (-not $IdentityName -or -not $Publisher) {
     Write-Host "ERROR: WINDOWS_IDENTITY_NAME and WINDOWS_PUBLISHER must be set in .env" -ForegroundColor Red
     Write-Host "  Find these under Partner Center -> Apps and games -> Digital Habits: To-Do -> Product identity" -ForegroundColor Yellow
