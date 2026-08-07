@@ -220,6 +220,22 @@
                     </div>
                 </div>
 
+                <!-- Pull-down list search (lists + favourites); hidden until revealed -->
+                <div id="list-search" class="list-search" aria-hidden="true">
+                    <div class="list-search-inner">
+                        <svg class="list-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            aria-hidden="true">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input id="list-search-input" type="text" class="list-search-input" autocomplete="off"
+                            spellcheck="false" data-i18n-placeholder="listSearchPlaceholder" />
+                        <span class="list-search-esc" aria-hidden="true">Esc</span>
+                    </div>
+                    <div id="list-search-tabs" class="list-search-tabs hidden" role="tablist"></div>
+                </div>
+
                 <!-- Tasks Container -->
                 <div class="tasks-container">
                     <!-- Active tasks will be dynamically added here -->
